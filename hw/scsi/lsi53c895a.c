@@ -1184,7 +1184,7 @@ static void lsi_do_msgout(LSIState *s)
             }
             s->current_lun = msg & 7;
             s->disc_priv = msg & 0x40;
-            trace_lsi_do_msgout_select(s->current_lun);
+            trace_lsi_do_msgout_select(s->current_lun, s->disc_priv);
             lsi_set_phase(s, PHASE_CMD);
             break;
         }
