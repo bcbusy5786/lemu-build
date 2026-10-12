@@ -450,8 +450,19 @@ static void parallel_reset(void *opaque)
 
 static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 
+/*
+ * Data, status and control are split from the rest because an LPT at
+ * 0x3bc decodes only those three, next to VGA at 0x3c0.
+ */
 static const MemoryRegionPortio isa_parallel_portio_hw_list[] = {
-    { 0, 8, 1,
+    { 0, 3, 1,
+      .read = parallel_ioport_read_hw,
+      .write = parallel_ioport_write_hw },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionPortio isa_parallel_portio_hw_ext_list[] = {
+    { 3, 5, 1,
       .read = parallel_ioport_read_hw,
       .write = parallel_ioport_write_hw },
     { 4, 1, 2,
@@ -467,20 +478,18 @@ static const MemoryRegionPortio isa_parallel_portio_hw_list[] = {
 };
 
 static const MemoryRegionPortio isa_parallel_portio_sw_list[] = {
-    { 0, 8, 1,
-      .read = parallel_ioport_read_sw,
-      .write = parallel_ioport_write_sw },
-    PORTIO_END_OF_LIST(),
-};
-
-/* An LPT at 0x3bc only decodes data, status and control, next to VGA */
-static const MemoryRegionPortio isa_parallel_portio_3bc_list[] = {
     { 0, 3, 1,
       .read = parallel_ioport_read_sw,
       .write = parallel_ioport_write_sw },
     PORTIO_END_OF_LIST(),
 };
 
+static const MemoryRegionPortio isa_parallel_portio_sw_ext_list[] = {
+    { 3, 5, 1,
+      .read = parallel_ioport_read_sw,
+      .write = parallel_ioport_write_sw },
+    PORTIO_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_parallel_isa = {
     .name = "parallel_isa",
@@ -542,11 +551,16 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
     }
 
     isa_register_portio_list(isadev, &isa->portio_list, base,
-                             (base == 0x3bc ? &isa_parallel_portio_3bc_list[0] :
-                              s->hw_driver
+                             (s->hw_driver
                               ? &isa_parallel_portio_hw_list[0]
                               : &isa_parallel_portio_sw_list[0]),
                              s, "parallel");
+    isa_register_portio_list(isadev, &isa->portio_list_ext, base,
+                             (s->hw_driver
+                              ? &isa_parallel_portio_hw_ext_list[0]
+                              : &isa_parallel_portio_sw_ext_list[0]),
+                             s, "parallel");
+    isa_parallel_set_enabled(isadev, true);
 }
 
 static void parallel_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
