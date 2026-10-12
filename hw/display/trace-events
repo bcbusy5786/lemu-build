@@ -236,3 +236,9 @@ s3_928_state(unsigned cmd, unsigned sx, unsigned sy, unsigned dx, unsigned dy, u
 s3_928_dac(unsigned index, unsigned value) "index=%u value=0x%02x"
 s3_928_vga_io(unsigned port, unsigned value) "port=0x%04x value=0x%02x"
 s3_928_memory(unsigned addr, unsigned value, bool write) "addr=0x%06x value=0x%02x write=%d"
+# s3_trio.c
+s3_vga_read(uint32_t port, uint8_t idx, uint32_t val) "port 0x%x idx 0x%02x val 0x%x"
+s3_vga_write(uint32_t port, uint8_t idx, uint32_t val) "port 0x%x idx 0x%02x val 0x%x"
+s3_ge_read(uint32_t reg, uint32_t val, unsigned size) "reg 0x%x val 0x%x size %u"
+s3_ge_write(uint32_t reg, uint32_t val, unsigned size) "reg 0x%x val 0x%x size %u"
+s3_cmd(uint16_t cmd, int x, int y, int dx, int dy, int w, int h, unsigned bpp, unsigned pitch) "cmd 0x%04x src %d,%d dst %d,%d size %dx%d bpp %u pitch %u"
