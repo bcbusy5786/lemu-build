@@ -117,6 +117,26 @@ void HELPER(store_atbu)(CPUPPCState *env, target_ulong val)
     cpu_ppc_store_atbu(env, val);
 }
 
+target_ulong HELPER(load_601_rtcl)(CPUPPCState *env)
+{
+    return cpu_ppc601_load_rtcl(env);
+}
+
+target_ulong HELPER(load_601_rtcu)(CPUPPCState *env)
+{
+    return cpu_ppc601_load_rtcu(env);
+}
+
+void HELPER(store_601_rtcl)(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc601_store_rtcl(env, val);
+}
+
+void HELPER(store_601_rtcu)(CPUPPCState *env, target_ulong val)
+{
+    cpu_ppc601_store_rtcu(env, val);
+}
+
 target_ulong HELPER(load_decr)(CPUPPCState *env)
 {
     return cpu_ppc_load_decr(env);
