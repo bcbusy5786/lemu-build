@@ -677,6 +677,12 @@ void ps2_write_keyboard(PS2KbdState *s, int val)
         ps2_cqueue_1(ps2, KBD_REPLY_ACK);
         break;
     case KBD_CMD_SET_ALL_KEYS:
+        /* F8 has no argument; a command sent after it is a command */
+        if (val >= KBD_CMD_SET_LEDS) {
+            ps2->write_cmd = -1;
+            ps2_write_keyboard(s, val);
+            return;
+        }
         ps2_cqueue_1(ps2, KBD_REPLY_ACK);
         ps2->write_cmd = -1;
         break;
