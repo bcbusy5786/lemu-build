@@ -11,6 +11,7 @@ f=%Y-%m-%dT%H:%M:%S
 rtc=$(date -v-28y +$f 2>/dev/null || date -d '28 years ago' +$f)
 m=jensen,rtc-ram-file=rtc.bin,s3-928=on,s3-vram-mb=4,s3-romfile=fw/928-n9.bin
 exec "$q" \
+ -name "Windows NT 3.1 ALPHA JENSEN" \
  -M "$m" -m 128 \
  -rtc base="$rtc" \
  -drive if=pflash,index=0,format=raw,file=feprom0.bin \

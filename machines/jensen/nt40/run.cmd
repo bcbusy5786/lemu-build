@@ -2,6 +2,7 @@
 cd /d "%~dp0"
 for /f "usebackq delims=" %%t in (`powershell -NoProfile -Command "(Get-Date).AddYears(-28).ToString('s')"`) do set rtc=%%t
 bin\windows-x86_64\qemu-system-alpha.exe ^
+ -name "Windows NT 4.0 ALPHA JENSEN" ^
  -M jensen,rtc-ram-file=rtc.bin,s3-928=on,s3-vram-mb=4,s3-romfile=fw/928-n9.bin -m 128 ^
  -rtc base=%rtc% ^
  -drive if=pflash,index=0,format=raw,file=feprom0.bin ^
