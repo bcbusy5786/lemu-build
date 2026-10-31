@@ -4,12 +4,12 @@ Scripts that build the portable QEMU for the MIPS kits on macOS, Linux and
 Windows, check that nothing is missing, and pack the kits. One build serves
 all four kits:
 
-| Kit | Binary | Machine |
-|---|---|---|
-| nt31mips-qemu | qemu-system-mips64el | magnum (NT 3.1) |
-| nt4-rm200-qemu | qemu-system-mips64el | sni-rm200 (NT 4.0) |
-| nt4srv-rm300-smp4-qemu | qemu-system-mips64el | sni-rm300, 4 CPUs (NT 4.0 Server) |
-| sinixn545-qemu | qemu-system-mips64 | sni-rm200 (SINIX-N 5.45) |
+| Kit | Binary | Machine | Run scripts |
+|---|---|---|---|
+| nt31mips-qemu | qemu-system-mips64el | magnum (NT 3.1) | `machines/jazz/nt31` |
+| nt4-rm200-qemu | qemu-system-mips64el | sni-rm200 (NT 4.0) | `machines/rm200/nt40` |
+| nt4srv-rm300-smp4-qemu | qemu-system-mips64el | sni-rm300, 4 CPUs (NT 4.0 Server) | `machines/rm200/nt40srv` |
+| sinixn545-qemu | qemu-system-mips64 | sni-rm200 (SINIX-N 5.45) | `machines/rm200/sinix545` |
 
 ## Build
 
@@ -50,7 +50,9 @@ missing git id. The check catches those:
     sh ltest.sh ubuntu:24.04 KITCOPY
 
 - `KITDIR` is an unpacked kit (run.sh, run.cmd, README.txt, disk,
-  firmware). `pack.sh` replaces its qemu/ folder.
+  firmware). `pack.sh` replaces its qemu/ folder, and puts in run.sh and
+  run.cmd from the folder in the table above (run.cmd with Windows line
+  ends). Change the run scripts there, not in the kit.
 - `verify.sh` runs the feature check on the Mac binary from the tarball.
 - `ltest.sh` runs the Linux binary in a clean container: the feature check,
   then a 40 s boot. Use a copy of the kit, because the boot writes to the
