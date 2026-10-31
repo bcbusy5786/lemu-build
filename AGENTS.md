@@ -21,6 +21,11 @@ used by AI agents, so AI-written code is welcome here.
 - **One folder per machine:** `machines/<machine>/` holds notes, guest
   tools, a `run.sh` per guest system and the release scripts. Don't add
   new files to `contrib/`; upstream's own folders there stay.
+- **Window title:** every `run.sh` and `run.cmd` gives QEMU a `-name` with
+  the guest system, the CPU and the machine, such as
+  `-name "Windows NT 4.0 ALPHA JENSEN"` or
+  `-name "Windows NT 4.0 MIPS RM200"`, so each window says which guest it
+  runs.
 - **Build:** `./configure`, then `make`. Python 3.12 or newer is needed.
   With `--without-default-features`, also give `--enable-hmp`, or
   `-monitor stdio` will not work.
