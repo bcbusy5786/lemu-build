@@ -101,6 +101,10 @@ struct FDCtrl {
     IsaDma *dma;
     bool strict_pio;
     bool specify_nd;
+    /* a new command drops an interrupt that was never sensed */
+    bool cmd_drops_irq;
+    /* RECALIBRATE with no drive ends with an equipment check */
+    bool recal_eqpmt_check;
     /* Controller's identification */
     uint8_t version;
     /* HW */

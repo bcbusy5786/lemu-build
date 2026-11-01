@@ -571,9 +571,15 @@ static void ibm_40p_init(MachineState *machine)
 
 static void ibm_40p_machine_init(MachineClass *mc)
 {
+    /*
+     * These make shared device models act as the 40p's chips do; other
+     * machines keep them off.
+     */
     static GlobalProperty compat[] = {
         { TYPE_ISA_FDC, "sra", "on" },
         { TYPE_ISA_FDC, "seek-latency-us", "1000" },
+        { TYPE_ISA_FDC, "cmd-drops-irq", "on" },
+        { TYPE_ISA_FDC, "recal-eqpmt-check", "on" },
         { TYPE_MC146818_RTC, "base_year", "2000" },
         { TYPE_MC146818_RTC, "century-byte", "off" },
         { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on" },

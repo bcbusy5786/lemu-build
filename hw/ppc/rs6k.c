@@ -1000,11 +1000,15 @@ static void rs6k_init(MachineState *machine)
 
 /*
  * IBM CD-ROM drives power up with 512-byte blocks, which AIX expects. The
- * ROS sets them again with a SCSI-1 (PF=0) MODE SELECT.
+ * ROS sets them again with a SCSI-1 (PF=0) MODE SELECT. The other entries
+ * turn on what the 7006 needs from shared device models; other machines
+ * keep them off.
  */
 static GlobalProperty rs6k_compat[] = {
     { "scsi-cd", "physical_block_size", "512" },
     { "scsi-cd", "quirk_mode_page_vendor_specific_apple", "on" },
+    { "sysbus-fdc", "cmd-drops-irq", "on" },
+    { "sysbus-fdc", "recal-eqpmt-check", "on" },
 };
 
 static char *rs6k_get_nvram(Object *obj, Error **errp)

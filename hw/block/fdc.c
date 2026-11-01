@@ -2194,7 +2194,8 @@ static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
     fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
-    if (cur_drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
+    if (fdctrl->recal_eqpmt_check &&
+        cur_drv->drive == FLOPPY_DRIVE_TYPE_NONE) {
         /* without a drive track 0 never shows up */
         fdctrl->status0 |= FD_SR0_ABNTERM | FD_SR0_EQPMT;
     }
@@ -2473,7 +2474,8 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
             cmd = get_command(value);
             fdctrl->data_len = cmd->parameters + 1;
             /* A new command drops an interrupt that was never sensed */
-            if (cmd->handler != fdctrl_handle_sense_interrupt_status) {
+            if (fdctrl->cmd_drops_irq &&
+                cmd->handler != fdctrl_handle_sense_interrupt_status) {
                 fdctrl_reset_irq(fdctrl);
             }
             if (cmd->parameters) {

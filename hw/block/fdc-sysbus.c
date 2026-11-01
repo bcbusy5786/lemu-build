@@ -215,6 +215,9 @@ static const Property sysbus_fdc_properties[] = {
     DEFINE_PROP_LINK("dma-controller", FDCtrlSysBus, state.dma, TYPE_ISADMA,
                      IsaDma *),
     DEFINE_PROP_INT32("dma-channel", FDCtrlSysBus, state.dma_chann, -1),
+    DEFINE_PROP_BOOL("cmd-drops-irq", FDCtrlSysBus, state.cmd_drops_irq, false),
+    DEFINE_PROP_BOOL("recal-eqpmt-check", FDCtrlSysBus,
+                     state.recal_eqpmt_check, false),
 };
 
 static void sysbus_fdc_class_init(ObjectClass *klass, const void *data)
