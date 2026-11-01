@@ -30,21 +30,21 @@ cp "$vm/$nvram" "$r/nvram.bin"
 cp "$fw/P12H0456.IMG" "$r/fw/"
 case $os in nt|aix*) cp "$fw/gxt110p.bin" "$r/fw/" ;; esac
 [ $os = os2 ] && cp "$vm/disk/os2ppc.iso" "$r/"
-for f in "$here/$os"/*; do
+for f in "$here/../$os"/*; do
     case $f in
     *.cmd) sed 's/$/\r/' "$f" > "$r/${f##*/}" ;;
     *) cp "$f" "$r/" ;;
     esac
 done
-cp "$here/../../COPYING" "$here/../../COPYING.LIB" "$r/bin/"
-find "$here/../../pc-bios/keymaps" -type f ! -name meson.build \
+cp "$here/../../../COPYING" "$here/../../../COPYING.LIB" "$r/bin/"
+find "$here/../../../pc-bios/keymaps" -type f ! -name meson.build \
     -exec cp {} "$r/bin/share/qemu/keymaps/" \;
 for p in macos-arm64 linux-x86_64 linux-aarch64 windows-x86_64; do
     cp -a "$bin/$p" "$r/bin/"
 done
 if [ $os != nt ]; then
-    cp "$here/../../pc-bios/efi-pcnet.rom" "$r/bin/share/qemu/"
-    cp "$here/../../pc-bios/efi-pcnet.rom" "$r/bin/windows-x86_64/share/"
+    cp "$here/../../../pc-bios/efi-pcnet.rom" "$r/bin/share/qemu/"
+    cp "$here/../../../pc-bios/efi-pcnet.rom" "$r/bin/windows-x86_64/share/"
 fi
 chmod 644 "$r"/*.qcow2 "$r/nvram.bin" "$r"/fw/*
 

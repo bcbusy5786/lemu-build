@@ -3,11 +3,11 @@
 set -e
 if [ "$1" != --container ]; then
     [ $# -eq 2 ] || { echo "usage: $0 amd64|arm64 OUTDIR" >&2; exit 1; }
-    src=$(cd "$(dirname "$0")/../.." && pwd)
+    src=$(cd "$(dirname "$0")/../../.." && pwd)
     mkdir -p "$2"
     exec docker run --rm --platform "linux/$1" -v "$src:/src:ro" \
         -v "$(cd "$2" && pwd):/out" almalinux:9 \
-        sh /src/contrib/40p/build-linux.sh --container
+        sh /src/machines/40p/release/build-linux.sh --container
 fi
 
 dnf -y -q install epel-release dnf-plugins-core
