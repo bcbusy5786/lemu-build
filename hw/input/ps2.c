@@ -822,13 +822,16 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
         break;
     }
 
-    ps2_raise_irq(ps2);
-
     trace_ps2_mouse_send_packet(s, dx1, dy1, dz1, b);
-    /* update deltas */
+    /*
+     * update deltas before the interrupt: a port that reads the queue at
+     * once (the 7006) gets here again through ps2_read_data()
+     */
     s->mouse_dx -= dx1;
     s->mouse_dy -= dy1;
     s->mouse_sent_buttons = s->mouse_buttons;
+
+    ps2_raise_irq(ps2);
 
     return 1;
 }
