@@ -1287,11 +1287,15 @@ static void rm200_set_nvram(Object *obj, const char *value, Error **errp)
     s->nvram_file = g_strdup(value);
 }
 
-/* No x86 option ROMs; SINIX sets drive mode pages QEMU cannot apply */
+/*
+ * No x86 option ROMs; SINIX reads the Format Device page and sets drive
+ * mode pages QEMU cannot apply
+ */
 static GlobalProperty rm200_props[] = {
     { "pcnet", "romfile", "" },
     { "cirrus-vga", "romfile", "" },  /* also covers cirrus-vga-gd5434 */
     { "VGA", "romfile", "" },
+    { "scsi-hd", "quirk_mode_page_format_device", "on" },
     { "scsi-hd", "quirk_mode_select_ignore", "on" },
     { "scsi-cd", "quirk_mode_select_ignore", "on" },
 };

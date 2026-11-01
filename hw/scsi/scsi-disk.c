@@ -1156,6 +1156,11 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
     if ((mode_sense_valid[page] & (1 << s->qdev.type)) == 0) {
         return -1;
     }
+    /* Solaris 2.5.1 overruns its buffer once it gets this page */
+    if (page == MODE_PAGE_FORMAT_DEVICE &&
+        !(s->quirks & (1 << SCSI_DISK_QUIRK_MODE_PAGE_FORMAT_DEVICE))) {
+        return -1;
+    }
 
     /*
      * If Changeable Values are requested, a mask denoting those mode parameters
@@ -3326,6 +3331,8 @@ static const Property scsi_hd_properties[] = {
                     quirks, SCSI_DISK_QUIRK_MODE_PAGE_SET_BLOCK_SIZE, 0),
     DEFINE_PROP_BIT("quirk_mode_select_ignore", SCSIDiskState, quirks,
                     SCSI_DISK_QUIRK_MODE_SELECT_IGNORE, 0),
+    DEFINE_PROP_BIT("quirk_mode_page_format_device", SCSIDiskState, quirks,
+                    SCSI_DISK_QUIRK_MODE_PAGE_FORMAT_DEVICE, 0),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
 };
 
