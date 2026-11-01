@@ -48,6 +48,7 @@ struct SerialState {
     uint8_t lsr; /* read only */
     uint8_t msr; /* read only */
     uint8_t modem_inputs; /* MSR input levels when the backend has none */
+    bool loopback_msr;    /* loopback changes set the MSR delta bits */
     uint8_t scr;
     uint8_t fcr;
     uint8_t fcr_vmstate; /* we can't write directly this value

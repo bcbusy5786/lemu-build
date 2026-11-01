@@ -215,7 +215,7 @@ static void serial_update_msl(SerialState *s)
 
     timer_del(s->modem_status_poll);
 
-    if (s->mcr & UART_MCR_LOOP) {
+    if (s->loopback_msr && (s->mcr & UART_MCR_LOOP)) {
         return;
     }
     if (qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_GET_TIOCM,
@@ -461,10 +461,12 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             int old_mcr = s->mcr;
             s->mcr = val & 0x1f;
             if (val & UART_MCR_LOOP) {
-                serial_set_msr_inputs(s, serial_loop_msr(s));
+                if (s->loopback_msr) {
+                    serial_set_msr_inputs(s, serial_loop_msr(s));
+                }
                 break;
             }
-            if (old_mcr & UART_MCR_LOOP) {
+            if (s->loopback_msr && (old_mcr & UART_MCR_LOOP)) {
                 /* the modem status inputs follow the line again */
                 if (s->poll_msl < 0) {
                     serial_set_msr_inputs(s, s->modem_inputs);
@@ -552,6 +554,12 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
         }
         break;
     case 6:
+        if (!s->loopback_msr && (s->mcr & UART_MCR_LOOP)) {
+            /* in loopback, the modem output pins are connected to the
+               inputs */
+            ret = serial_loop_msr(s);
+            break;
+        }
         if (s->poll_msl >= 0) {
             serial_update_msl(s);
         }
@@ -984,6 +992,7 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
     DEFINE_PROP_UINT8("modem-inputs", SerialState, modem_inputs,
                       UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS),
+    DEFINE_PROP_BOOL("loopback-msr", SerialState, loopback_msr, false),
 };
 
 static void serial_class_init(ObjectClass *klass, const void *data)

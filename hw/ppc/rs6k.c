@@ -1009,6 +1009,7 @@ static GlobalProperty rs6k_compat[] = {
     { "scsi-cd", "quirk_mode_page_vendor_specific_apple", "on" },
     { "sysbus-fdc", "cmd-drops-irq", "on" },
     { "sysbus-fdc", "recal-eqpmt-check", "on" },
+    { "serial", "loopback-msr", "on" },
 };
 
 static char *rs6k_get_nvram(Object *obj, Error **errp)
