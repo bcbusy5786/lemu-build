@@ -34,7 +34,6 @@ function WaitFor($p) {
 
 function Send($t) {
     foreach ($ch in $t.ToCharArray()) { $s.Write($enc.GetBytes([string]$ch), 0, 1); Start-Sleep -Milliseconds 150 }
-    if (!$t) { Start-Sleep -Milliseconds 150 }
     $s.WriteByte(13)
 }
 
@@ -64,10 +63,10 @@ function Bootloader {
     if (!(WaitFor 'Reading Configuration File')) { return }
     Start-Sleep -Milliseconds 500
     $a = 0
-    for ($n = 0; $n -lt 1000; $n++) {
+    for ($n = 0; $n -lt 5000; $n++) {
         $t = Tail 400
         if ($t.Contains('symbol table returned') -or $t.Contains('stage name')) { return }
-        if ($script:total -le $a -or !(Pending)) { Start-Sleep -Milliseconds 100; continue }
+        if ($script:total -le $a -or !(Pending)) { Start-Sleep -Milliseconds 20; continue }
         $a = $script:total
         Send (Fix (LastLine))
     }

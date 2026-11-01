@@ -22,7 +22,7 @@ waitfor() {
 }
 
 send() {
-	printf '%s\n' "$1" | fold -w 1 | while read -r c; do printf '%s' "$c"; sleep 0.15; done
+	[ -z "$1" ] || printf '%s\n' "$1" | fold -w 1 | while read -r c; do printf '%s' "$c"; sleep 0.15; done
 	printf '\r'
 }
 
@@ -52,11 +52,11 @@ bootloader() {
 	sleep 0.5
 	n=0
 	a=0
-	while [ $n -lt 1000 ] && kill -0 $$ 2>/dev/null; do
+	while [ $n -lt 5000 ] && kill -0 $$ 2>/dev/null; do
 		n=$((n+1))
 		tail -c 400 $LOG | grep -q 'symbol table returned\|stage name' && return
 		s=$(wc -c < $LOG)
-		[ $s -gt $a ] && pending || { sleep 0.1; continue; }
+		[ $s -gt $a ] && pending || { sleep 0.02; continue; }
 		a=$s
 		[ "$1" ] && send "$(edit "$(lastline)")" || printf '\r'
 	done
