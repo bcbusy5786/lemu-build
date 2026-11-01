@@ -22,12 +22,14 @@ typedef struct ParallelState {
     uint32_t base;
     /* Memory-mapped interface */
     int it_shift;
+    /* a strobe prints the byte even without Select In, as printers do */
+    bool strobe_without_select;
 } ParallelState;
 
 void parallel_hds_isa_init(ISABus *bus, int n);
 
-bool parallel_mm_init(MemoryRegion *address_space,
-                      hwaddr base, int it_shift, qemu_irq irq,
-                      Chardev *chr);
+ParallelState *parallel_mm_init(MemoryRegion *address_space,
+                                hwaddr base, int it_shift, qemu_irq irq,
+                                Chardev *chr);
 
 #endif

@@ -304,6 +304,7 @@ static void rs6k_sio_realize(DeviceState *dev, Error **errp)
 {
     Rs6kSIOState *s = RS6K_SIO(dev);
     Object *obj = OBJECT(dev);
+    ParallelState *pp;
 
     if (!s->iocc) {
         error_setg(errp, "iocc link not set");
@@ -325,9 +326,11 @@ static void rs6k_sio_realize(DeviceState *dev, Error **errp)
     s->dma_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sio_dma_tick, s);
     rs6k_sio_realize_fdc(s, errp);
     rs6k_sio_realize_input(s, errp);
-    parallel_mm_init(&s->iocc->bus_io, SIO_PP_ADDR, 0,
-                     qdev_get_gpio_in(DEVICE(s->iocc), SIO_PP_LEVEL),
-                     parallel_hds[0]);
+    pp = parallel_mm_init(&s->iocc->bus_io, SIO_PP_ADDR, 0,
+                          qdev_get_gpio_in(DEVICE(s->iocc), SIO_PP_LEVEL),
+                          parallel_hds[0]);
+    /* the AIX printer driver never asserts Select In */
+    pp->strobe_without_select = true;
     rs6k_iocc_set_slot(s->iocc, SIO_SLOT, SIO_ID, sio_pos_write, s);
 }
 

@@ -102,8 +102,7 @@ parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
             s->status |= PARA_STS_ONLINE;
             s->status |= PARA_STS_ERROR;
         }
-        /* printers take the strobed byte with or without Select In */
-        else {
+        else if (s->strobe_without_select || (val & PARA_CTR_SELECT)) {
             if (val & PARA_CTR_STROBE) {
                 s->status &= ~PARA_STS_BUSY;
                 if ((s->control & PARA_CTR_STROBE) == 0)
@@ -610,9 +609,9 @@ static const MemoryRegionOps parallel_mm_ops = {
 };
 
 /* If fd is zero, it means that the parallel device uses the console */
-bool parallel_mm_init(MemoryRegion *address_space,
-                      hwaddr base, int it_shift, qemu_irq irq,
-                      Chardev *chr)
+ParallelState *parallel_mm_init(MemoryRegion *address_space,
+                                hwaddr base, int it_shift, qemu_irq irq,
+                                Chardev *chr)
 {
     ParallelState *s;
 
@@ -625,7 +624,7 @@ bool parallel_mm_init(MemoryRegion *address_space,
     memory_region_init_io(&s->iomem, NULL, &parallel_mm_ops, s,
                           "parallel", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->iomem);
-    return true;
+    return s;
 }
 
 static const Property parallel_isa_properties[] = {
