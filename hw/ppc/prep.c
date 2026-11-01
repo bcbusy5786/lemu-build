@@ -585,6 +585,10 @@ static void ibm_40p_machine_init(MachineClass *mc)
         { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on" },
         { "pcnet", "dword-decode", "on" },
         { "i8042", "ctrl-reply-first", "on" },
+        { "lsi53c810", "wait-phase-idle", "on" },
+        { "lsi53c810", "stack-sist", "on" },
+        { "lsi53c810", "sip-until-read", "on" },
+        { "lsi53c810", "reg-alias", "on" },
     };
 
     mc->desc = "IBM RS/6000 7020 (40p)",

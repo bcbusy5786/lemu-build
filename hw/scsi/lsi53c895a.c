@@ -231,6 +231,12 @@ struct LSIState {
     QEMUTimer *gen_timer;
     uint32_t select_latency_us;
     bool select_timeout;
+    /* switches for the machines that need the chip closer to the real one */
+    bool wait_phase_idle;
+    bool stack_sist;
+    bool sip_until_read;
+    bool reg_alias;
+    bool reject_sdtr;
     /* An absent target was selected; report STO when the SCRIPTS resume. */
     bool sto_pending;
 
@@ -628,14 +634,16 @@ static void lsi_script_scsi_interrupt(LSIState *s, int stat0, int stat1)
     uint32_t mask1;
 
     trace_lsi_script_scsi_interrupt(stat1, stat0, s->sist1, s->sist0);
-    if ((s->sist0 & stat0) || (s->sist1 & stat1)) {
+    if (s->stack_sist && ((s->sist0 & stat0) || (s->sist1 & stat1))) {
         /* Already pending and unread: stack a second occurrence. */
         s->sist0_stacked |= s->sist0 & stat0;
         s->sist1_stacked |= s->sist1 & stat1;
     }
     s->sist0 |= stat0;
     s->sist1 |= stat1;
-    s->sist_unread = 3;
+    if (s->sip_until_read) {
+        s->sist_unread = 3;
+    }
     /* Stop processor on fatal or unmasked interrupt.  As a special hack
        we don't stop processing when raising STO.  Instead continue
        execution and stop at the next insn that accesses the SCSI bus.  */
@@ -1128,12 +1136,14 @@ static void lsi_do_msgout(LSIState *s)
             trace_lsi_do_msgout_extended(msg, len);
             switch (msg) {
             case 1:
-                /* targets are asynchronous: reject the negotiation */
                 trace_lsi_do_msgout_ignored("SDTR");
                 lsi_skip_msgbytes(s, 2);
-                lsi_set_phase(s, PHASE_MI);
-                lsi_add_msg_byte(s, 7); /* MESSAGE REJECT */
-                s->msg_action = LSI_MSG_ACTION_COMMAND;
+                if (s->reject_sdtr) {
+                    /* targets are asynchronous: reject the negotiation */
+                    lsi_set_phase(s, PHASE_MI);
+                    lsi_add_msg_byte(s, 7); /* MESSAGE REJECT */
+                    s->msg_action = LSI_MSG_ACTION_COMMAND;
+                }
                 break;
             case 3:
                 trace_lsi_do_msgout_ignored("WDTR");
@@ -1701,7 +1711,7 @@ again:
             }
             if (cond == jmp && (insn & (1 << 17))) {
                 /* An idle bus reads as DATA OUT; wait for a real phase. */
-                if (!(s->scntl1 & LSI_SCNTL1_CON)) {
+                if (s->wait_phase_idle && !(s->scntl1 & LSI_SCNTL1_CON)) {
                     s->dsp -= 8;
                     lsi_wait_reselect(s);
                     break;
@@ -2597,9 +2607,10 @@ static void lsi_scsi_realize_8xx(PCIDevice *dev, Error **errp, uint16_t type)
     s->ram_io.disable_reentrancy_guard = true;
     s->io_io.disable_reentrancy_guard = true;
 
-    if (type == PCI_DEVICE_ID_LSI_53C895A) {
+    if (type == PCI_DEVICE_ID_LSI_53C895A || !s->reg_alias) {
         mmio_size = 0x400;
     } else {
+        /* the 53C810 decodes 128 bytes of registers, repeated in I/O */
         mr = g_new(MemoryRegion, 1);
         memory_region_init_alias(mr, OBJECT(d), "lsi-io-alias", &s->io_io,
                                  0, 0x80);
@@ -2653,6 +2664,16 @@ static const Property lsi_properties[] = {
      * STIME0 (up to a couple of seconds) rather than failing at once.
      */
     DEFINE_PROP_BOOL("select-timeout", LSIState, select_timeout, false),
+    /* A phase compare on an idle bus waits for a reselection. */
+    DEFINE_PROP_BOOL("wait-phase-idle", LSIState, wait_phase_idle, false),
+    /* A second SCSI interrupt waits until the first has been read. */
+    DEFINE_PROP_BOOL("stack-sist", LSIState, stack_sist, false),
+    /* SIP stays set until SIST0 and SIST1 have both been read. */
+    DEFINE_PROP_BOOL("sip-until-read", LSIState, sip_until_read, false),
+    /* The 53C810 registers repeat at 0x80 in I/O; the MMIO BAR is 128 bytes. */
+    DEFINE_PROP_BOOL("reg-alias", LSIState, reg_alias, false),
+    /* Answer SDTR with MESSAGE REJECT instead of skipping it. */
+    DEFINE_PROP_BOOL("reject-sdtr", LSIState, reject_sdtr, false),
 };
 
 static void lsi_class_init(ObjectClass *klass, const void *data)

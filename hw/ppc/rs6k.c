@@ -1010,6 +1010,10 @@ static GlobalProperty rs6k_compat[] = {
     { "sysbus-fdc", "cmd-drops-irq", "on" },
     { "sysbus-fdc", "recal-eqpmt-check", "on" },
     { "serial", "loopback-msr", "on" },
+    { "lsi53c810", "wait-phase-idle", "on" },
+    { "lsi53c810", "stack-sist", "on" },
+    { "lsi53c810", "sip-until-read", "on" },
+    { "lsi53c810", "reject-sdtr", "on" },
 };
 
 static char *rs6k_get_nvram(Object *obj, Error **errp)
