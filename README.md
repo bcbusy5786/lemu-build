@@ -27,15 +27,13 @@ It emulates **old computers**, and it is made to be used **with AI agents**.
 | MIPS Magnum (Jazz) | Windows NT 3.1 |
 | DEC Jensen (DECpc AXP 150, Alpha) | Windows NT 3.1, Windows NT 4.0 |
 | Intel PC with an S3 86C928 card | Windows NT 3.1 |
-
-Coming next, from the machine branches:
-
-- IBM 40p PReP: AIX, Windows NT, OS/2, Solaris
-- IBM pSeries: AIX
+| IBM 40P (7020-40P, PReP, PowerPC 604) | AIX 4.1.5, AIX 4.3.3, AIX 5.1, Windows NT 4.0, OS/2 Warp, Solaris 2.5.1 |
+| IBM RS/6000 7006-41T (PowerPC 601) | AIX 3.2.5 |
+| IBM pSeries (POWER7, POWER8) | AIX 5.3, AIX 7.2 |
 
 ## Build
 
-    ./configure --target-list=mips64el-softmmu,mips64-softmmu,alpha-softmmu,i386-softmmu
+    ./configure --target-list=mips64el-softmmu,mips64-softmmu,alpha-softmmu,i386-softmmu,ppc-softmmu,ppc64-softmmu
     make
 
 - You need the same tools as for QEMU, and Python 3.12 or newer.
