@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
-# AIX 7.2 on emulated POWER8. Boots hdisk0, falls back to DVD. "./run.sh cd" forces DVD.
+# AIX 7.2 on emulated POWER8. Boots hdisk0, falls back to DVD. "./install.sh cd" forces DVD.
 # Ctrl-A X quits, Ctrl-A C monitor. Telnet: localhost:7223, ssh: localhost:7222
 cd "$(dirname "$0")" || exit 1
 
@@ -10,6 +10,7 @@ order=cd
 [ "$1" = cd ] && order=d
 
 exec qemu-system-ppc64 \
+ -name "AIX 7.2 POWER PSERIES" \
  -M pseries,ic-mode=xics \
  -cpu POWER8 \
  -m 8G \

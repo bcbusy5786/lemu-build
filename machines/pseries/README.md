@@ -1,0 +1,23 @@
+# IBM pSeries (sPAPR)
+
+`-M pseries` runs AIX 5.3 and AIX 7.2 as a logical partition under TCG. Each
+system has a folder here with the `run.sh`, `run.cmd` and `README.txt` of its
+ready-to-run tarball: `aix53` and `aix72`.
+
+AIX 5.3 needs device-tree fixes that `aix53/run.sh` gives SLOF as nvramrc
+Forth, and it runs CDE on an ATI ES1000 with a USB keyboard and mouse.
+
+`aix72/install.sh` installs AIX 7.2 on an emulated POWER8 from `hdisk0.qcow2`
+(created on first run), falling back to the install DVD next to it;
+`./install.sh cd` forces the DVD. Use the TL5 SP3 DVD
+`AIX_v7.2_Install_7200-05-03-2147_DVD_1_of_2.iso`, TL5 SP10 hangs right after
+the kernel banner.
+
+## Release
+
+`release/` builds the tarballs: `build-linux.sh amd64|arm64 OUT` and
+`build-windows.sh OUT` (Docker), and `build-macos.sh OUT` (Homebrew glib,
+pixman, libslirp, sdl2-compat, sdl3, dylibbundler) build self-contained
+qemu-system-ppc64 binaries into OUT, then `mkrelease.sh aix53|aix72 VMDIR OUT
+NAME.tar.lz` packs them with the VM's disk (`aix53-gfx.qcow2` or
+`hdisk0.qcow2`) and the SLOF firmware.
