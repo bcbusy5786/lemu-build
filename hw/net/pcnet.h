@@ -53,6 +53,8 @@ struct PCNetState_st {
     DeviceState *dma_opaque;
     int tx_busy;
     int looptest;
+    /* decode only A31:2, as the chip does, so narrow reads see the DWord */
+    bool dword_decode;
 };
 
 void pcnet_h_reset(void *opaque);
