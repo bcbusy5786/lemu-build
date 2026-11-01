@@ -1289,9 +1289,11 @@ static void rm200_set_nvram(Object *obj, const char *value, Error **errp)
 
 /*
  * No x86 option ROMs; SINIX reads the Format Device page and sets drive
- * mode pages QEMU cannot apply
+ * mode pages QEMU cannot apply, and its clock stops for a Count wrap
+ * when TCG writes its Compare too late
  */
 static GlobalProperty rm200_props[] = {
+    { TYPE_MIPS_CPU, "late-compare", "on" },
     { "pcnet", "romfile", "" },
     { "cirrus-vga", "romfile", "" },  /* also covers cirrus-vga-gd5434 */
     { "VGA", "romfile", "" },

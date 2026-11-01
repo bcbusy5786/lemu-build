@@ -64,7 +64,7 @@ static void cpu_mips_timer_expire(CPUMIPSState *env)
 uint32_t cpu_mips_get_count(CPUMIPSState *env)
 {
     if (env->CP0_Cause & (1 << CP0Ca_DC)) {
-        return env->CP0_Count;
+        env->count_read = env->CP0_Count;
     } else {
         uint64_t now_ns;
 
@@ -75,8 +75,9 @@ uint32_t cpu_mips_get_count(CPUMIPSState *env)
             cpu_mips_timer_expire(env);
         }
 
-        return cpu_mips_get_count_val(env);
+        env->count_read = cpu_mips_get_count_val(env);
     }
+    return env->count_read;
 }
 
 void cpu_mips_store_count(CPUMIPSState *env, uint32_t count)
@@ -97,8 +98,35 @@ void cpu_mips_store_count(CPUMIPSState *env, uint32_t count)
     }
 }
 
+/*
+ * SINIX reads Count, and when it is within 3 ticks of Compare it writes
+ * Count + 48 to Compare, so that the interrupt is not lost.  A real CPU
+ * writes it a few cycles later, but TCG can take microseconds, so Count
+ * may already be past the new value, and the interrupt then comes only
+ * after Count wraps, 64 s later.  With late-compare, a value set ahead
+ * of the last Count the guest read, which Count has passed since,
+ * matches at once.  A value behind that Count, such as Count - 1 written
+ * to stop the timer, waits for the wrap as before.
+ */
+#define LATE_COMPARE_WINDOW (1u << 26) /* about 1 s at 66 MHz */
+
+static bool cpu_mips_compare_is_late(CPUMIPSState *env, uint32_t value)
+{
+    uint32_t ahead, passed;
+
+    if (!env_archcpu(env)->late_compare ||
+        (env->CP0_Cause & (1 << CP0Ca_DC))) {
+        return false;
+    }
+    ahead = value - env->count_read;
+    passed = cpu_mips_get_count_val(env) - env->count_read;
+    return ahead && ahead <= passed && passed <= LATE_COMPARE_WINDOW;
+}
+
 void cpu_mips_store_compare(CPUMIPSState *env, uint32_t value)
 {
+    bool late = cpu_mips_compare_is_late(env, value);
+
     env->CP0_Compare = value;
     if (!(env->CP0_Cause & (1 << CP0Ca_DC))) {
         cpu_mips_timer_update(env);
@@ -107,6 +135,9 @@ void cpu_mips_store_compare(CPUMIPSState *env, uint32_t value)
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
     }
     qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+    if (late) {
+        cpu_mips_timer_expire(env);
+    }
 }
 
 void cpu_mips_start_count(CPUMIPSState *env)

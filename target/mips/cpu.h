@@ -1220,6 +1220,7 @@ typedef struct CPUArchState {
     /* QEMU TLB may hold addresses outside the 32-bit compatible segments */
     bool tlb_has_xaddr;
 #endif
+    uint32_t count_read; /* the last Count the guest read */
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
@@ -1263,6 +1264,7 @@ struct ArchCPU {
 
     /* Properties */
     bool is_big_endian;
+    bool late_compare;
 };
 
 /**

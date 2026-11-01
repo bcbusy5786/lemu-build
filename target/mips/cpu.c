@@ -666,6 +666,8 @@ static const struct SysemuCPUOps mips_sysemu_ops = {
 
 static const Property mips_cpu_properties[] = {
     DEFINE_PROP_BOOL("big-endian", MIPSCPU, is_big_endian, TARGET_BIG_ENDIAN),
+    /* Match at once a Compare that Count passed before TCG wrote it */
+    DEFINE_PROP_BOOL("late-compare", MIPSCPU, late_compare, false),
 };
 
 #ifdef CONFIG_TCG
