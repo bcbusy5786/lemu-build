@@ -10,6 +10,7 @@ esac
 # SDL on macOS drops the click that focuses a window; let it turn the key
 export SDL_MOUSE_FOCUS_CLICKTHROUGH=1
 exec "$q" \
+ -name "AIX 3.2.5 POWERPC 7006" \
  -M 7006,nvram=nvram.bin,key=${KEY:-normal} -m 256 \
  -bios fw/11H5778_7006-41T_U5.BIN -icount shift=auto \
  -device gxt150l,romfile=fw/GXT150L_88G2832_U35.BIN \

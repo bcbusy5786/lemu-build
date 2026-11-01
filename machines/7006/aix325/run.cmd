@@ -3,6 +3,7 @@ setlocal
 cd /d "%~dp0"
 if "%KEY%"=="" set KEY=normal
 bin\windows-x86_64\qemu-system-ppc.exe ^
+ -name "AIX 3.2.5 POWERPC 7006" ^
  -M 7006,nvram=nvram.bin,key=%KEY% -m 256 ^
  -bios fw/11H5778_7006-41T_U5.BIN -icount shift=auto ^
  -device gxt150l,romfile=fw/GXT150L_88G2832_U35.BIN ^
