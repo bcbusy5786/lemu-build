@@ -12,10 +12,10 @@ mkdir -p "$r/bin/share/qemu/keymaps" "$r/fw"
 qemu-img convert -O qcow2 "$vm/disk/hd0.qcow2" "$r/aix325.qcow2"
 cp "$vm/disk/nvram.bin" "$r/"
 cp "$vm/fw/11H5778_7006-41T_U5.BIN" "$vm/fw/GXT150L_88G2832_U35.BIN" "$r/fw/"
-cp "$here/release/run.sh" "$here/release/README.txt" "$r/"
-sed 's/$/\r/' "$here/release/run.cmd" > "$r/run.cmd"
-cp "$here/../../COPYING" "$here/../../COPYING.LIB" "$r/bin/"
-find "$here/../../pc-bios/keymaps" -type f ! -name meson.build \
+cp "$here/../aix325/run.sh" "$here/../aix325/README.txt" "$r/"
+sed 's/$/\r/' "$here/../aix325/run.cmd" > "$r/run.cmd"
+cp "$here/../../../COPYING" "$here/../../../COPYING.LIB" "$r/bin/"
+find "$here/../../../pc-bios/keymaps" -type f ! -name meson.build \
     -exec cp {} "$r/bin/share/qemu/keymaps/" \;
 for p in macos-arm64 linux-x86_64 linux-aarch64 windows-x86_64; do
     cp -a "$bin/$p" "$r/bin/"

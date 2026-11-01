@@ -3,11 +3,11 @@
 set -e
 if [ "$1" != --container ]; then
     [ $# -eq 1 ] || { echo "usage: $0 OUTDIR" >&2; exit 1; }
-    src=$(cd "$(dirname "$0")/../.." && pwd)
+    src=$(cd "$(dirname "$0")/../../.." && pwd)
     mkdir -p "$1"
     exec docker run --rm -v "$src:/src:ro" -v "$(cd "$1" && pwd):/out" \
         registry.fedoraproject.org/fedora:43 \
-        sh /src/contrib/aix3/build-windows.sh --container
+        sh /src/machines/7006/release/build-windows.sh --container
 fi
 
 dnf -y -q install gcc mingw64-gcc mingw64-glib2 mingw64-pixman \

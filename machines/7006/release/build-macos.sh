@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 set -e
 [ $# -eq 1 ] || { echo "usage: $0 OUTDIR" >&2; exit 1; }
-src=$(cd "$(dirname "$0")/../.." && pwd)
+src=$(cd "$(dirname "$0")/../../.." && pwd)
 mkdir -p "$1/build-macos" "$1/macos-arm64"
 out=$(cd "$1/macos-arm64" && pwd)
 export MACOSX_DEPLOYMENT_TARGET=15.0
