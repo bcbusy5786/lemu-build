@@ -13,4 +13,4 @@ Run shutdown -F and wait for "Halt completed" before quitting QEMU.
 For 1024x768 graphics: chdev -l iga0 -a monitor_type=Default -P, then shutdown -Fr.
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu/tree/aix4 (GPLv2, see bin/COPYING).
+QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc --version names the commit.

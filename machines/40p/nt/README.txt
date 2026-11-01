@@ -6,4 +6,4 @@ The QEMU monitor is in the terminal: sendkey ctrl-alt-delete, change cd0 file.is
 Network is QEMU user mode NAT on an ISA NE2000.
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu/tree/powerpc (GPLv2, see bin/COPYING).
+QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc --version names the commit.

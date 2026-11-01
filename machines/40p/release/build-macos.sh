@@ -9,7 +9,7 @@ export MACOSX_DEPLOYMENT_TARGET=15.0
 cd "$1/build-macos"
 # SDL, as only it gives the front panel a window of its own
 "$src/configure" --target-list=ppc-softmmu --without-default-features \
-    --enable-system --enable-tcg --enable-sdl --enable-cocoa --enable-pixman \
+    --enable-system --enable-tcg --enable-hmp --enable-sdl --enable-cocoa --enable-pixman \
     --enable-slirp --enable-vnc --enable-vvfat --enable-qcow1 --enable-vdi \
     --enable-vmdk --enable-vpc --enable-vhdx --enable-qed --disable-docs
 ninja qemu-system-ppc

@@ -6,6 +6,7 @@ if [ "$1" != --container ]; then
     src=$(cd "$(dirname "$0")/../../.." && pwd)
     mkdir -p "$1"
     exec docker run --rm -v "$src:/src:ro" -v "$(cd "$1" && pwd):/out" \
+        -e "PKGVERSION=$(git -C "$src" describe --match 'v*' --dirty 2>/dev/null)" \
         registry.fedoraproject.org/fedora:43 \
         sh /src/machines/40p/release/build-windows.sh --container
 fi
@@ -16,8 +17,10 @@ dnf -y -q install gcc mingw64-gcc mingw64-glib2 mingw64-pixman \
 mkdir -p /work/build
 tar -C /src --exclude=./.git --exclude='./build*' -cf - . | tar -C /work -xf -
 cd /work/build
-../configure --cross-prefix=x86_64-w64-mingw32- --target-list=ppc-softmmu \
-    --without-default-features --enable-system --enable-tcg --enable-sdl \
+# the source is copied without .git, so pass the git id for --version
+../configure ${PKGVERSION:+--with-pkgversion=$PKGVERSION} \
+    --cross-prefix=x86_64-w64-mingw32- --target-list=ppc-softmmu \
+    --without-default-features --enable-system --enable-tcg --enable-hmp --enable-sdl \
     --enable-pixman --enable-slirp --enable-vnc --enable-vvfat \
     --enable-qcow1 --enable-vdi --enable-vmdk --enable-vpc --enable-vhdx \
     --enable-qed --enable-stack-protector --disable-docs

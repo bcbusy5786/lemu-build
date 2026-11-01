@@ -6,6 +6,7 @@ if [ "$1" != --container ]; then
     src=$(cd "$(dirname "$0")/../../.." && pwd)
     mkdir -p "$2"
     exec docker run --rm --platform "linux/$1" -v "$src:/src:ro" \
+        -e "PKGVERSION=$(git -C "$src" describe --match 'v*' --dirty 2>/dev/null)" \
         -v "$(cd "$2" && pwd):/out" almalinux:9 \
         sh /src/machines/40p/release/build-linux.sh --container
 fi
@@ -19,8 +20,10 @@ dnf -y -q install gcc-toolset-13-gcc gcc-toolset-13-binutils make ninja-build \
 mkdir -p /work/build
 tar -C /src --exclude=./.git --exclude='./build*' -cf - . | tar -C /work -xf -
 cd /work/build
-../configure --python=/usr/bin/python3.12 --target-list=ppc-softmmu \
-    --without-default-features --enable-system --enable-tcg --enable-sdl \
+# the source is copied without .git, so pass the git id for --version
+../configure ${PKGVERSION:+--with-pkgversion=$PKGVERSION} \
+    --python=/usr/bin/python3.12 --target-list=ppc-softmmu \
+    --without-default-features --enable-system --enable-tcg --enable-hmp --enable-sdl \
     --enable-pixman --enable-slirp --enable-vnc --enable-vvfat \
     --enable-qcow1 --enable-vdi --enable-vmdk --enable-vpc --enable-vhdx \
     --enable-qed --enable-malloc-trim --enable-membarrier \
