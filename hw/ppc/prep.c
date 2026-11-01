@@ -584,6 +584,7 @@ static void ibm_40p_machine_init(MachineClass *mc)
         { TYPE_MC146818_RTC, "century-byte", "off" },
         { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on" },
         { "pcnet", "dword-decode", "on" },
+        { "i8042", "ctrl-reply-first", "on" },
     };
 
     mc->desc = "IBM RS/6000 7020 (40p)",

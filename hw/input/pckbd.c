@@ -295,7 +295,12 @@ static void kbd_queue(KBDState *s, int b, int aux)
         s->cbdata = b;
         s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
         s->pending |= aux ? KBD_PENDING_CTRL_AUX : KBD_PENDING_CTRL_KBD;
-        kbd_update_irq(s);
+        /* a controller reply can go ahead of pending device data */
+        if (s->ctrl_reply_first) {
+            kbd_update_irq(s);
+        } else {
+            kbd_safe_update_irq(s);
+        }
     } else {
         ps2_queue(aux ? PS2_DEVICE(&s->ps2mouse) : PS2_DEVICE(&s->ps2kbd), b);
     }
@@ -951,6 +956,8 @@ static const Property i8042_properties[] = {
     DEFINE_PROP_BOOL("kbd-throttle", ISAKBDState, kbd_throttle, false),
     DEFINE_PROP_BOOL("selftest-reply-first", ISAKBDState,
                      kbd.selftest_reply_first, false),
+    DEFINE_PROP_BOOL("ctrl-reply-first", ISAKBDState,
+                     kbd.ctrl_reply_first, false),
     DEFINE_PROP_UINT8("kbd-irq", ISAKBDState, kbd_irq, 1),
     DEFINE_PROP_UINT8("mouse-irq", ISAKBDState, mouse_irq, 12),
 };

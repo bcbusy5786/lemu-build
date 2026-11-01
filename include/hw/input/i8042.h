@@ -27,6 +27,7 @@ typedef struct KBDState {
     bool extended_state;
     bool extended_state_loaded;
     bool selftest_reply_first;
+    bool ctrl_reply_first;
     /* Bitmask of devices with data available.  */
     uint8_t pending;
     uint8_t obdata;
