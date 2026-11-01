@@ -10,6 +10,7 @@ esac
 # SDL on macOS drops the click that focuses a window
 export SDL_MOUSE_FOCUS_CLICKTHROUGH=1
 exec "$q" \
+ -name "AIX 4.1.5 POWERPC 40P" \
  -M 40p,panel=on -m 128 \
  -bios fw/P12H0456.IMG \
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram \

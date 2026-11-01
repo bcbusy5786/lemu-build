@@ -2,6 +2,7 @@
 cd /d "%~dp0"
 start "" /min powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File os2-com1.ps1
 bin\windows-x86_64\qemu-system-ppc.exe ^
+ -name "OS/2 Warp POWERPC 40P" ^
  -M 40p -m 128 ^
  -bios fw/P12H0456.IMG ^
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram ^

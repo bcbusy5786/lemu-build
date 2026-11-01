@@ -10,6 +10,7 @@ esac
 # SDL on macOS drops the click that focuses a window
 export SDL_MOUSE_FOCUS_CLICKTHROUGH=1
 exec "$q" \
+ -name "Solaris 2.5.1 POWERPC 40P" \
  -M 40p -m 128 \
  -bios fw/P12H0456.IMG \
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram \

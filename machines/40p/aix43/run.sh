@@ -12,6 +12,7 @@ export SDL_MOUSE_FOCUS_CLICKTHROUGH=1
 # AIX 4.3 drops a held mouse button in wheel mouse mode and stutters when the mouse
 # reports faster than the 60/s it asks for: give it a plain PS/2 mouse at that rate
 exec "$q" \
+ -name "AIX 4.3.3 POWERPC 40P" \
  -M 40p,panel=on -m 128 \
  -bios fw/P12H0456.IMG \
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram \

@@ -1,6 +1,7 @@
 @echo off
 cd /d "%~dp0"
 bin\windows-x86_64\qemu-system-ppc.exe ^
+ -name "AIX 4.3.3 POWERPC 40P" ^
  -M 40p,panel=on -m 128 ^
  -bios fw/P12H0456.IMG ^
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram ^

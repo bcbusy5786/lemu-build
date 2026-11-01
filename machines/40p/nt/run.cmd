@@ -1,6 +1,7 @@
 @echo off
 cd /d "%~dp0"
 bin\windows-x86_64\qemu-system-ppc.exe ^
+ -name "Windows NT 4.0 POWERPC 40P" ^
  -M 40p -m 128 ^
  -bios fw/P12H0456.IMG ^
  -drive file=nvram.bin,if=none,id=nvram,format=raw -global isa-m48t59.drive=nvram ^
