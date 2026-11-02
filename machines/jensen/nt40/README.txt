@@ -5,6 +5,7 @@ NT logs on automatically as Administrator (no password). Extra QEMU options are 
 Press a key during the firmware's 5 s countdown for the ARC menus. Its "NVRAM inconsistent" warning is harmless.
 The ARC boot menu still lists the NT 3.1 entry this disk was set up from; NT 4.0 is the default.
 The screen is 1280x1024 with 65536 colours (S3 86C928, 4 MB).
+QEMU halts the CPU while NT is idle, so an idle VM uses about 2% of a host core.
 The clock runs 28 years behind (the firmware rejects current years). Network is QEMU user mode NAT (NE2000, 10.0.2.15).
 QEMU monitor: Ctrl-Alt-2 (back with Ctrl-Alt-1). CD-ROM and floppy are empty: change cd0 file.iso, change fd0 file.img.
 Send Ctrl-Alt-Del from the monitor with: sendkey ctrl-alt-delete

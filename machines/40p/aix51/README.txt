@@ -6,6 +6,7 @@ Installed: AIX 5L 5.1 with ML9 and later fixes (oslevel -r says 5100-09), CDE, J
 GNU tools are RPMs in /opt/freeware, linked into /usr/bin: gcc and g++ 4.5.4, bash 5.0, gmake, gtar, gawk, binutils, xz, lzip, wget (https needs --no-check-certificate), rsync, screen and less. AIX's own grep, sed, tar and diff stay the default; the GNU ones are in /opt/freeware/bin.
 Extra QEMU options are passed through, e.g. ./run.sh -display vnc=:1.
 The panel window shows the power and disk lights, the firmware progress codes and the AIX LED codes (boot progress, showled).
+QEMU halts the CPU while AIX is idle, so an idle VM uses about 2% of a host core.
 The terminal holds the serial console and the QEMU monitor: Ctrl-A c switches between them, Ctrl-A x quits.
 The CD-ROM is empty: change cd0 file.iso in the monitor, then mkdir -p /cdrom; mount -v cdrfs -o ro /dev/cd0 /cdrom in AIX.
 Network is QEMU user mode NAT; AIX is 10.0.2.15 with gateway 10.0.2.2.

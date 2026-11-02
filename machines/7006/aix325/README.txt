@@ -6,6 +6,7 @@ rsh to localhost port 2514 runs commands as root (no .rhosts needed).
 Installed: everything from the AIX 3.2.5 Volume 1 and 2 and AIXwindows 1.2.5 CDs, and the Enhancement 5 (PMP 3251) fixes.
 /usr/local has software from the UCLA AIX PDS archive: bash, emacs, gcc, gdb, make, perl, the GNU utilities, less, screen, mc, lynx, wget, ncftp, Mosaic, nedit, xv, rxvt and more.
 Extra QEMU options are passed through, e.g. ./run.sh -display vnc=:1.
+QEMU halts the CPU while AIX is idle, so an idle VM uses 6-15% of a host core.
 The operator panel window shows the LED codes; click a key position to turn the key. KEY=service ./run.sh sets it at power-on.
 The terminal holds the serial console and the QEMU monitor: Ctrl-A c switches between them, Ctrl-A x quits.
 The CD-ROM is empty: change cd0 file.iso in the monitor, then mount -v cdrfs -r /dev/cd0 /mnt in AIX.
