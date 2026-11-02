@@ -157,6 +157,7 @@ struct SniRm200MachineState {
     QEMUTimer *slice_timer;
     uint32_t slice_us;
     uint32_t scsi_delay_us;
+    bool nt_idle;
     SniMpa mpa[RM_MAX_CPUS];
 };
 
@@ -1155,6 +1156,7 @@ static void sni_rm200_init(MachineState *machine)
         qemu_register_reset(main_cpu_reset, cpu);
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
+        cpu->nt_idle = rm->nt_idle;
         rm->mpa[i].env = &cpu->env;
     }
     env = rm->mpa[0].env;
@@ -1287,6 +1289,16 @@ static void rm200_set_nvram(Object *obj, const char *value, Error **errp)
     s->nvram_file = g_strdup(value);
 }
 
+static bool rm200_get_nt_idle(Object *obj, Error **errp)
+{
+    return SNI_RM200_MACHINE(obj)->nt_idle;
+}
+
+static void rm200_set_nt_idle(Object *obj, bool value, Error **errp)
+{
+    SNI_RM200_MACHINE(obj)->nt_idle = value;
+}
+
 /*
  * No x86 option ROMs; SINIX reads the Format Device page and sets drive
  * mode pages QEMU cannot apply, and its clock stops for a Count wrap
@@ -1318,6 +1330,10 @@ static void sni_rm200_class_init(ObjectClass *oc, const void *data)
                                   rm200_set_nvram);
     object_class_property_set_description(oc, "nvram",
                                           "File backing the 32KB NVRAM");
+    object_class_property_add_bool(oc, "nt-idle", rm200_get_nt_idle,
+                                   rm200_set_nt_idle);
+    object_class_property_set_description(oc, "nt-idle",
+        "Halt the CPU in the Windows NT idle loop instead of spinning");
 }
 
 static void sni_rm200_instance_init(Object *obj)
@@ -1326,6 +1342,7 @@ static void sni_rm200_instance_init(Object *obj)
 
     s->csmsr = 0x87;
     s->scsi_delay_us = SCSI_IRQ_DELAY_US;
+    s->nt_idle = true;
     object_property_add_uint32_ptr(obj, "scsi-delay", &s->scsi_delay_us,
                                    OBJ_PROP_FLAG_READWRITE);
     object_property_set_description(obj, "scsi-delay",
