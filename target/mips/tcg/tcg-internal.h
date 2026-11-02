@@ -51,6 +51,7 @@ void r4k_invalidate_tlb(CPUMIPSState *env, int idx, int use_extra);
 uint32_t cpu_mips_get_random(CPUMIPSState *env);
 
 bool mips_io_recompile_replay_branch(CPUState *cs, const TranslationBlock *tb);
+bool mips_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
 
 hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
                                   MMUAccessType access_type, uintptr_t retaddr);

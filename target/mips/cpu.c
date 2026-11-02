@@ -32,6 +32,8 @@
 #include "hw/core/qdev-clock.h"
 #include "disas/capstone.h"
 #include "fpu_helper.h"
+#include "exec/breakpoint.h"
+#include "exec/watchpoint.h"
 #ifndef CONFIG_USER_ONLY
 #include "semihosting/semihost.h"
 #endif
@@ -152,6 +154,11 @@ static bool mips_cpu_has_work(CPUState *cs)
             (env->insn_flags & ISA_MIPS_R6)) {
             has_work = true;
         }
+    }
+
+    /* Another vCPU wrote where the NT idle loop looks for work */
+    if (qatomic_read(&MIPS_CPU(cs)->nt_idle_wake)) {
+        has_work = true;
     }
 
     /* MIPS-MT has the ability to halt the CPU.  */
@@ -433,6 +440,13 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
                          (1 << CP0SC_EU) | (2 << CP0SC_C)) << 16;
     /* XKPhys (note, SegCtl2.XR = 0, so XAM won't be used) */
     env->CP0_SegCtl1 |= (CP0SC_AM_UK << CP0SC1_XAM);
+
+    /* Forget what the NT idle loop watched, see tcg/nt_idle.c */
+    cpu_watchpoint_remove_all(cs, BP_CPU);
+    cpu->nt_idle_wake = false;
+    cpu->nt_idle_watched = 0;
+    cpu->nt_idle_next = 0;
+    cpu->nt_idle_dpc = 0;
 #endif /* !CONFIG_USER_ONLY */
     if ((env->insn_flags & ISA_MIPS_R6) &&
         (env->active_fpu.fcr0 & (1 << FCR0_F64))) {
@@ -727,6 +741,7 @@ static const TCGCPUOps mips_tcg_ops = {
     .do_transaction_failed = mips_cpu_do_transaction_failed,
     .do_unaligned_access = mips_cpu_do_unaligned_access,
     .io_recompile_replay_branch = mips_io_recompile_replay_branch,
+    .debug_check_watchpoint = mips_cpu_debug_check_watchpoint,
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */

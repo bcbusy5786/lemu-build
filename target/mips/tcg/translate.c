@@ -15140,6 +15140,8 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mi = (env->CP0_Config5 >> CP0C5_MI) & 1;
     ctx->gi = (env->CP0_Config5 >> CP0C5_GI) & 3;
     ctx->crcp = (env->CP0_Config5 >> CP0C5_CRCP) & 1;
+    ctx->nt_idle = env_archcpu(env)->nt_idle &&
+                   !(tb_cflags(ctx->base.tb) & CF_SINGLE_STEP);
     restore_cpu_state(env, ctx);
 #ifdef CONFIG_USER_ONLY
         ctx->mem_idx = MIPS_HFLAG_UM;
@@ -15180,6 +15182,47 @@ static void mips_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
                        ctx->btarget);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+/*
+ * The Windows NT 4.0 idle loop (KiIdleLoop) enables interrupts for five
+ * nops, disables them, checks the DPC list and the next thread, and then
+ * calls HalProcessorIdle, which on MIPS returns without waiting, so an idle
+ * NT spins. Each word with its mask; the masks skip branch and load offsets.
+ */
+static const uint32_t nt_idle_loop[][2] = {
+    { 0x409e6000, 0xffffffff },     /* mtc0  s8,psr      enable */
+    { 0, 0xffffffff }, { 0, 0xffffffff }, { 0, 0xffffffff },
+    { 0, 0xffffffff }, { 0, 0xffffffff },
+    { 0x40966000, 0xffffffff },     /* mtc0  s6,psr      disable */
+    { 0, 0xffffffff }, { 0, 0xffffffff }, { 0, 0xffffffff },
+    { 0x8e640000, 0xffffffff },     /* lw    a0,0(s3)    DPC list */
+    { 0x50930000, 0xffff0000 },     /* beql  a0,s3,...   empty */
+    { 0x8e120000, 0xffff0000 },     /* lw    s2,n(s0)    next thread */
+};
+
+/* After the mtc0 that enables interrupts, let helper_nt_idle halt */
+static void gen_nt_idle(DisasContext *ctx, CPUMIPSState *env)
+{
+    vaddr pc = ctx->base.pc_next;
+    uint32_t insn = 0;
+    int i;
+
+    if (!translator_is_same_page(&ctx->base,
+                                 pc + 4 * (ARRAY_SIZE(nt_idle_loop) - 1))) {
+        return;
+    }
+    for (i = 1; i < ARRAY_SIZE(nt_idle_loop); i++) {
+        insn = translator_ldl_end(env, &ctx->base, pc + 4 * i,
+                                  mo_endian(ctx));
+        if ((insn & nt_idle_loop[i][1]) != nt_idle_loop[i][0]) {
+            return;
+        }
+    }
+    gen_helper_nt_idle(tcg_env, tcg_constant_tl(pc + 4),
+                       tcg_constant_i32((int16_t)insn));
+}
+#endif
+
 static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     CPUMIPSState *env = cpu_env(cs);
@@ -15197,6 +15240,12 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                                          mo_endian(ctx));
         insn_bytes = 4;
         decode_opc(env, ctx);
+#if !defined(CONFIG_USER_ONLY)
+        if (ctx->nt_idle && ctx->opcode == nt_idle_loop[0][0] && !is_slot &&
+            ctx->base.is_jmp == DISAS_EXIT) {
+            gen_nt_idle(ctx, env);
+        }
+#endif
     } else if (ctx->insn_flags & ASE_MICROMIPS) {
         ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
                                           mo_endian(ctx));

@@ -52,6 +52,7 @@ typedef struct DisasContext {
     bool mi;
     int gi;
     bool crcp;
+    bool nt_idle;
 } DisasContext;
 
 #define DISAS_STOP       DISAS_TARGET_0

@@ -1265,6 +1265,15 @@ struct ArchCPU {
     /* Properties */
     bool is_big_endian;
     bool late_compare;
+
+    /* Halt in the Windows NT idle loop, set by the board (nt_idle.c) */
+    bool nt_idle;
+    bool nt_idle_wake;
+    uint32_t nt_idle_watched;
+    vaddr nt_idle_next;
+    vaddr nt_idle_dpc;
+    int64_t nt_idle_since;
+    int64_t nt_idle_last;
 };
 
 /**

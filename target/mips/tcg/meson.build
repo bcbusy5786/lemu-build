@@ -37,5 +37,6 @@ mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
 ))
 
 if have_system
+  mips_system_ss.add(files('nt_idle.c'))
   subdir('system')
 endif
