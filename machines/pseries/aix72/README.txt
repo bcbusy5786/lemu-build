@@ -1,6 +1,6 @@
 AIX 7.2 (7200-05-03) on QEMU's pSeries (POWER8 logical partition, virtio SCSI disk)
 
-Run ./run.sh (macOS 15+ arm64, Linux x86_64/aarch64 with glibc 2.34+) or run.cmd (Windows 10+ x64).
+Run ./run.sh (macOS 26+ arm64, Linux x86_64/aarch64 with glibc 2.34+) or run.cmd (Windows 10+ x64).
 AIX runs on the serial console in the terminal, which also holds the QEMU monitor: Ctrl-A c switches between them, Ctrl-A x quits.
 The VM has 8 GB of memory. The first boot after a restore takes a few minutes.
 Extra QEMU options are passed through.

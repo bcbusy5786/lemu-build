@@ -1,6 +1,6 @@
 AIX 5.1 for the IBM RS/6000 on QEMU's 40P (7020-40P, PowerPC 604, GXT110P graphics)
 
-Run ./run.sh (macOS 15+ arm64, Linux x86_64/aarch64 with glibc 2.34+ and X11/XWayland) or run.cmd (Windows 10+ x64).
+Run ./run.sh (macOS 26+ arm64, Linux x86_64/aarch64 with glibc 2.34+ and X11/XWayland) or run.cmd (Windows 10+ x64).
 Log in as root (no password) at the CDE login on the graphics console (1280x1024), the serial login in the terminal or telnet localhost 5123.
 Installed: AIX 5L 5.1 with ML9 and later fixes (oslevel -r says 5100-09), CDE, Java 1.3.0 and Perl 5.6.0, plus most of CD 2 (games in /usr/games, the INed editor, DOS utilities, AIX 3.2 compatibility), topas and the other performance tools, the application development headers and libraries, and the X11 font server (started at boot, port 7100).
 GNU tools are RPMs in /opt/freeware, linked into /usr/bin: gcc and g++ 4.5.4, bash 5.0, gmake, gtar, gawk, binutils, xz, lzip, wget (https needs --no-check-certificate), rsync, screen and less. AIX's own grep, sed, tar and diff stay the default; the GNU ones are in /opt/freeware/bin.

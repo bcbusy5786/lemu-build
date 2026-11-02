@@ -1,6 +1,6 @@
 AIX 4.1.5 for the IBM RS/6000 on QEMU's 40P (7020-40P, PowerPC 604, GXT110P graphics)
 
-Run ./run.sh (macOS 15+ arm64, Linux x86_64/aarch64 with glibc 2.34+ and X11/XWayland) or run.cmd (Windows 10+ x64).
+Run ./run.sh (macOS 26+ arm64, Linux x86_64/aarch64 with glibc 2.34+ and X11/XWayland) or run.cmd (Windows 10+ x64).
 Log in as root (no password) at the CDE login on the graphics console (1280x1024), the serial console in the terminal or telnet localhost 4123.
 Installed: everything from the AIX 4.1.5 CD1 and CD2, with CDE 1.0. /usr/local has gcc 4.2.4, binutils, bash, the GNU utilities, vim, less, mc, screen, top, curl, wget, ncftp, nedit, xv, vncviewer and more.
 Extra QEMU options are passed through, e.g. ./run.sh -display vnc=:1.
