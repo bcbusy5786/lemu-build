@@ -320,6 +320,19 @@ static void ibm_40p_set_panel(Object *obj, bool value, Error **errp)
     ibm_40p_panel = value;
 }
 
+/* Halt the CPU in the idle loop of the OS, see target/ppc/translate.c */
+static bool ibm_40p_idle = true;
+
+static bool ibm_40p_get_idle(Object *obj, Error **errp)
+{
+    return ibm_40p_idle;
+}
+
+static void ibm_40p_set_idle(Object *obj, bool value, Error **errp)
+{
+    ibm_40p_idle = value;
+}
+
 static bool nvram_kept(Nvram *nvram)
 {
     return object_property_get_bool(OBJECT(nvram), "persistent", NULL);
@@ -360,6 +373,7 @@ static void ibm_40p_init(MachineState *machine)
         error_report("only 6xx bus is supported on this machine");
         exit(1);
     }
+    env->os_idle = ibm_40p_idle;
 
     /*
      * The IBM firmware tells the OS in the residual data that the bus runs
@@ -607,6 +621,11 @@ static void ibm_40p_machine_init(MachineClass *mc)
                                    ibm_40p_get_panel, ibm_40p_set_panel);
     object_class_property_set_description(OBJECT_CLASS(mc), "panel",
         "Front panel window with the lights and firmware progress codes");
+    object_class_property_add_bool(OBJECT_CLASS(mc), "idle",
+                                   ibm_40p_get_idle, ibm_40p_set_idle);
+    object_class_property_set_description(OBJECT_CLASS(mc), "idle",
+        "Halt the CPU while AIX, Windows NT, Solaris or OS/2 is idle, "
+        "instead of spinning (default: on)");
 }
 
 DEFINE_MACHINE("40p", ibm_40p_machine_init)
