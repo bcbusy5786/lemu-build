@@ -94,6 +94,12 @@ the NT HAL handle four: POST lists Processor 0 to 3 and NT shows
 "4 System Processors [64 MB Memory] MultiProcessor Kernel". The patched PROM above
 needs no more changes.
 
+Only the clock tick of CPUs 2 and 3 is missing on this board. CPU 0 has the board timer
+and CPU 1 the extra timer. The NT HAL of the PCI tower sends CPUs 2 and 3 a timer
+message at each tick of the extra timer, but the minitower HAL does not. So QEMU sends
+that message itself. Without it NT did not count the time of CPUs 2 and 3, and Task
+Manager showed them idle under full load.
+
 A fresh Server install needs no kernel swap: setup finds "Siemens Nixdorf
 RM300-C/RM400-C Multiprocessor" and installs the MP kernel by itself. Its `ntoskrnl.exe`
 needs the kernel race fix above too. Put the CD at SCSI ID 5
@@ -116,15 +122,15 @@ NT 4.0 Server, loop run from a batch file:
 | sni-rm300, 4 CPUs, multi-threaded TCG   | 16 s   | 15 s each       |
 
 Without `-icount` the CPUs run as fast as the host allows. The NT clock still follows
-real time. QEMU halts the CPUs in NT's idle loop, so an idle VM uses only a few
-percent of one host core (see `nt-idle` below). Typed at the cmd prompt instead of a
+real time. QEMU halts the CPUs in NT's idle loop, so an idle VM uses at most about
+10% of one host core (see `nt-idle` below). Typed at the cmd prompt instead of a
 batch file, the same loop is many times slower.
 
 ## Options
 
 - `nt-idle=off`: let NT's idle loop spin, as before. By default QEMU halts a CPU
-  that has nothing to do, so an idle VM uses under 10% of one host core instead of
-  two cores, or about three with four CPUs. sni-rm200 has the same option.
+  that has nothing to do, so an idle VM uses at most about 10% of one host core
+  instead of two cores, or about three with four CPUs. sni-rm200 has the same option.
 - `scsi-delay=0`: no SCSI interrupt delay. The default of 200 us is for SINIX.
   On macOS without `-icount` the delay costs at least 1 ms per disk I/O.
 - `slice=N`: only for single-threaded TCG (`-icount`). Longest CPU time slice in
