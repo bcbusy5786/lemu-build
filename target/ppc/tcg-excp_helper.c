@@ -19,10 +19,13 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "qemu/timer.h"
 #include "target/ppc/cpu.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-loop.h"
 #include "exec/helper-proto.h"
+#include "exec/target_page.h"
+#include "system/memory.h"
 #include "system/runstate.h"
 
 #include "helper_regs.h"
@@ -486,6 +489,154 @@ void HELPER(store_msr)(CPUPPCState *env, target_ulong val)
     if (excp != 0) {
         cpu_interrupt_exittb(env_cpu(env));
         raise_exception(env, excp);
+    }
+}
+
+/*
+ * The OS idle loops that the translator finds (gen_aix_idle(),
+ * gen_nt_idle(), gen_le_idle()) run with interrupts enabled and call one
+ * of these helpers, which halt until the next interrupt, as MSR[POW] would,
+ * when there is no work. The vCPU then resumes at the top of the loop,
+ * which looks for work again. With one CPU only an interrupt brings work.
+ */
+
+/* Interrupts are enabled and none is pending */
+static bool os_idle_quiet(CPUPPCState *env)
+{
+    return FIELD_EX64(env->msr, MSR, EE) && !env->pending_interrupts;
+}
+
+static G_NORETURN void os_idle_halt(CPUPPCState *env, target_ulong resume)
+{
+    CPUState *cs = env_cpu(env);
+
+    trace_ppc_os_idle(resume);
+    env->nip = resume;
+    cs->halted = 1;
+    cs->exception_index = EXCP_HALTED;
+    cpu_loop_exit(cs);
+}
+
+/*
+ * Spin on for OS_IDLE_POLL_NS after the idle loop was entered, as an I/O
+ * often completes that soon and waking a halted vCPU takes longer (KVM's
+ * halt polling does the same). A call more than OS_IDLE_GAP_NS after the
+ * previous one means the loop was left between. With -icount the caller
+ * must be the last insn of its TB, to read the clock.
+ */
+#define OS_IDLE_POLL_NS     (100 * SCALE_US)
+#define OS_IDLE_GAP_NS      (20 * SCALE_US)
+
+static bool os_idle_polled(CPUPPCState *env)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    if (now - env->os_idle_last > OS_IDLE_GAP_NS) {
+        env->os_idle_since = now;
+    }
+    env->os_idle_last = now;
+    return now - env->os_idle_since >= OS_IDLE_POLL_NS;
+}
+
+/* Read a little-endian word of guest kernel data, without faulting */
+static bool os_idle_read(CPUPPCState *env, target_ulong va, uint32_t *val)
+{
+    CPUState *cs = env_cpu(env);
+    MemTxResult res;
+    hwaddr pa;
+    int psize, prot;
+
+    if ((va & 3) || !ppc_xlate(env_archcpu(env), va, MMU_DATA_LOAD, &pa,
+                               &psize, &prot, ppc_env_mmu_index(env, false),
+                               false)) {
+        return false;
+    }
+    /* ppc_xlate() gives the page; the word does not cross it */
+    pa = (pa & TARGET_PAGE_MASK) | (va & ~TARGET_PAGE_MASK);
+    *val = address_space_ldl_le(cs->as, pa, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
+}
+
+/*
+ * AIX: the loop's back branch falls through when CR bit crbit is set; -1
+ * means it never does. AIX checks its run queue itself, so halt at once.
+ */
+void HELPER(aix_idle)(CPUPPCState *env, int32_t crbit, target_ulong start)
+{
+    if (crbit >= 0 && (env->crf[crbit >> 2] & (8 >> (crbit & 3)))) {
+        return;
+    }
+    if (os_idle_quiet(env)) {
+        os_idle_halt(env, start);
+    }
+}
+
+/*
+ * Windows NT 4.0 has just enabled interrupts at the top of KiIdleLoop.
+ * Halt when the DPC list head at r25 points to itself and the processor
+ * block at r29 has no next thread at offset next.
+ */
+void HELPER(nt_idle)(CPUPPCState *env, target_ulong resume, int32_t next)
+{
+    target_ulong dpc = env->gpr[25];
+    uint32_t val;
+
+    if (os_idle_quiet(env) &&
+        os_idle_read(env, dpc, &val) && val == (uint32_t)dpc &&
+        os_idle_read(env, env->gpr[29] + next, &val) && !val &&
+        os_idle_polled(env)) {
+        os_idle_halt(env, resume);
+    }
+}
+
+/*
+ * Solaris 2.5.1 is at the back branch of its idle loop. Halt while
+ * disp_nrunnable, which the loop loads from ra + d, is 0.
+ */
+void HELPER(sol_idle)(CPUPPCState *env, target_ulong resume, uint32_t ra,
+                      int32_t d)
+{
+    uint32_t val;
+
+    if (os_idle_quiet(env) &&
+        os_idle_read(env, env->gpr[ra] + d, &val) && !val &&
+        os_idle_polled(env)) {
+        os_idle_halt(env, resume);
+    }
+}
+
+/*
+ * OS/2 Warp for PowerPC is at the back branch of its idle loop, which is
+ * taken when CR0[EQ] is set. Halt when the next thread and the two run
+ * queue counts are 0 and no AST is due for this processor. regs holds, 5
+ * bits each, the registers that point to the processor, the GOT, the next
+ * thread and the two counts; offs holds the 16-bit offsets of the
+ * processor's slot number and of the GOT entry that points to need_ast[].
+ * The loop checked all of these, but an interrupt may have come between.
+ */
+void HELPER(os2_idle)(CPUPPCState *env, target_ulong resume, uint32_t regs,
+                      uint32_t offs)
+{
+    target_ulong proc = env->gpr[extract32(regs, 0, 5)];
+    target_ulong got = env->gpr[extract32(regs, 5, 5)];
+    uint32_t slot, ast, val;
+    int i;
+
+    if (!(env->crf[0] & CRF_EQ) || !os_idle_quiet(env)) {
+        return;
+    }
+    for (i = 2; i < 5; i++) {
+        if (!os_idle_read(env, env->gpr[extract32(regs, 5 * i, 5)], &val) ||
+            val) {
+            return;
+        }
+    }
+    if (os_idle_read(env, proc + sextract32(offs, 0, 16), &slot) &&
+        slot < 32 &&
+        os_idle_read(env, got + sextract32(offs, 16, 16), &ast) &&
+        os_idle_read(env, ast + 4 * slot, &val) && !val &&
+        os_idle_polled(env)) {
+        os_idle_halt(env, resume);
     }
 }
 

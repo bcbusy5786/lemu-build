@@ -1436,6 +1436,10 @@ struct CPUArchState {
     bool platform_le_governs_fetch;
     int fetch_shadow;
     bool fetch_shadow_le;
+    /* Halt in the idle loop of the OS, see the gen_*_idle() functions */
+    bool os_idle;
+    int64_t os_idle_since;  /* when the idle loop was entered */
+    int64_t os_idle_last;   /* when the idle loop last asked to halt */
 
     /*
      * On powernv, quiesced means the CPU has been stopped using PC direct
