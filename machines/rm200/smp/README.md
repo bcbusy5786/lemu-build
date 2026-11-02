@@ -116,12 +116,15 @@ NT 4.0 Server, loop run from a batch file:
 | sni-rm300, 4 CPUs, multi-threaded TCG   | 16 s   | 15 s each       |
 
 Without `-icount` the CPUs run as fast as the host allows. The NT clock still follows
-real time. NT's idle loop spins, so an idle VM keeps two host cores busy, or about
-three with four CPUs. Typed at the cmd prompt instead of a batch file, the same loop
-is many times slower.
+real time. QEMU halts the CPUs in NT's idle loop, so an idle VM uses only a few
+percent of one host core (see `nt-idle` below). Typed at the cmd prompt instead of a
+batch file, the same loop is many times slower.
 
 ## Options
 
+- `nt-idle=off`: let NT's idle loop spin, as before. By default QEMU halts a CPU
+  that has nothing to do, so an idle VM uses under 10% of one host core instead of
+  two cores, or about three with four CPUs. sni-rm200 has the same option.
 - `scsi-delay=0`: no SCSI interrupt delay. The default of 200 us is for SINIX.
   On macOS without `-icount` the delay costs at least 1 ms per disk I/O.
 - `slice=N`: only for single-threaded TCG (`-icount`). Longest CPU time slice in
