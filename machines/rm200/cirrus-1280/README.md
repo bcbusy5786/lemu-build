@@ -29,7 +29,7 @@ It does not model the scan-line divide (CR17) or 8-bit pixel multiplexing that a
 Stop QEMU first.
 
 ```sh
-cd /Users/tenox/VM/NTRM200
+cd /Users/tenox/VM/NT40RM200
 cp -c nt40.hda nt40.hda.bak                 # instant backup on APFS
 cirrus-1280/patch-disk.py nt40.hda --status # which driver is installed
 cirrus-1280/patch-disk.py nt40.hda          # apply (also saves the old driver)
