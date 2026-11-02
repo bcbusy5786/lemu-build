@@ -289,6 +289,70 @@ static void icount_timer_cb(void *opaque)
     icount_warp_rt();
 }
 
+/* With align=on, jump to a timer this close instead of waiting for it... */
+#define ICOUNT_ALIGN_JUMP   SCALE_MS
+/* ...unless that puts QEMU_CLOCK_VIRTUAL this far ahead of real time */
+#define ICOUNT_ALIGN_AHEAD  (10 * SCALE_MS)
+
+/*
+ * With align=on, keep QEMU_CLOCK_VIRTUAL with real time while all vCPUs
+ * sleep. The plain warp starts only when the main loop notices that the
+ * vCPUs sleep, and a woken vCPU runs a little later still, so every sleep
+ * loses that time. A guest that sleeps between its timer ticks falls
+ * behind real time for good, because align=on catches up only while a
+ * vCPU runs. Also without ppoll() (macOS) the main loop sleeps whole
+ * milliseconds, so every short wait would take at least one.
+ */
+static void icount_align_warp(void)
+{
+    int64_t clock, deadline, lag;
+
+    /*
+     * Account the time slept so far. Keep the warp timer: the warp below
+     * then ends at the same time, and re-arming it would wake the main
+     * loop, which calls this again.
+     */
+    icount_warp_rt();
+
+    deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL,
+                                          ~QEMU_TIMER_ATTR_EXTERNAL);
+    if (deadline <= 0) {
+        if (deadline == 0) {
+            qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+        }
+        return;
+    }
+    clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
+    lag = clock - icount_get();
+
+    if (deadline <= lag ||
+        (deadline <= ICOUNT_ALIGN_JUMP &&
+         deadline - lag <= ICOUNT_ALIGN_AHEAD)) {
+        /*
+         * Go to the deadline now, as sleep=off does. Behind real time this
+         * catches up one deadline at a time, so no timer tick is lost. If
+         * it gets the guest ahead, align_clocks() lets the vCPU sleep.
+         */
+        seqlock_write_lock(&timers_state.vm_clock_seqlock,
+                           &timers_state.vm_clock_lock);
+        qatomic_set(&timers_state.qemu_icount_bias,
+                    timers_state.qemu_icount_bias + deadline);
+        seqlock_write_unlock(&timers_state.vm_clock_seqlock,
+                             &timers_state.vm_clock_lock);
+        qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+        return;
+    }
+
+    /* Start the warp where the virtual clock fell behind real time */
+    clock -= MAX(lag, 0);
+    seqlock_write_lock(&timers_state.vm_clock_seqlock,
+                       &timers_state.vm_clock_lock);
+    timers_state.vm_clock_warp_start = clock;
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock,
+                         &timers_state.vm_clock_lock);
+    timer_mod_anticipate(timers_state.icount_warp_timer, clock + deadline);
+}
+
 void icount_start_warp_timer(void)
 {
     int64_t clock;
@@ -329,6 +393,11 @@ void icount_start_warp_timer(void)
             }
             return;
         }
+    }
+
+    if (icount_align_option && replay_mode == REPLAY_MODE_NONE) {
+        icount_align_warp();
+        return;
     }
 
     /* We want to use the earliest deadline from ALL vm_clocks */
