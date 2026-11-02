@@ -1,5 +1,7 @@
 accel tcg
+audio alsa
 audio none
+audio pa
 audio sdl
 audio wav
 chardev file
@@ -28,6 +30,7 @@ device am53c974
 device ati-vga
 device bochs-display
 device cirrus-vga
+device cirrus-vga-gd5434
 device cs4231a
 device ctucan_pci
 device dc390
@@ -93,10 +96,12 @@ device mioe3680_pci
 device mptsas1068
 device ne2k_isa
 device ne2k_pci
+device nec-usb-ohci
 device nec-usb-xhci
 device nvme
 device nvme-ns
 device nvme-subsys
+device p9100
 device pc-testdev
 device pci-bridge
 device pci-bridge-seat
@@ -114,6 +119,8 @@ device pvpanic-pci
 device pvscsi
 device qemu-xhci
 device rtl8139
+device s3-trio
+device s3-trio64
 device sb16
 device scsi-block
 device scsi-cd
@@ -199,9 +206,12 @@ format blkdebug
 format blklogwrites
 format blkreplay
 format blkverify
+format bochs
+format cloop
 format compress
 format copy-before-write
 format copy-on-read
+format dmg
 format file
 format host_cdrom
 format host_device
@@ -210,6 +220,7 @@ format nbd
 format null-aio
 format null-co
 format nvme
+format parallels
 format preallocate
 format qcow
 format qcow2
@@ -235,3 +246,4 @@ netdev stream
 netdev tap
 netdev user
 netdev vhost-user
+version git-id

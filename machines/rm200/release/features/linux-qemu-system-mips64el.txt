@@ -99,10 +99,12 @@ device mioe3680_pci
 device mptsas1068
 device ne2k_isa
 device ne2k_pci
+device nec-usb-ohci
 device nec-usb-xhci
 device nvme
 device nvme-ns
 device nvme-subsys
+device p9100
 device pc-testdev
 device pci-bridge
 device pci-bridge-seat
@@ -126,6 +128,8 @@ device pvscsi
 device qemu-xhci
 device rocker
 device rtl8139
+device s3-trio
+device s3-trio64
 device sb16
 device scsi-block
 device scsi-cd

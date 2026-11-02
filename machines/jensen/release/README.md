@@ -36,7 +36,7 @@ It works as for the MIPS kits (see `machines/rm200/release/README.md`):
 
 - `features.sh` lists what a binary has.
 - `check.sh` compares the list with `required.txt` and with `features/`
-  (the first nt31axp-qemu kit).
+  (what the last tested kit had).
 - `not-needed.txt` says why something other builds have is left out.
 
 What each platform gets:
