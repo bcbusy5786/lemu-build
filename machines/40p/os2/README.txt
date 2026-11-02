@@ -5,4 +5,4 @@ It boots through the bootloader on the OS/2 CD, which the run scripts answer ove
 Extra QEMU options are passed through, e.g. ./run.sh -display vnc=:1. The QEMU monitor is in the terminal.
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc --version names the commit.
+QEMU source: https://github.com/tenox7/lemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc --version names the commit.

@@ -62,6 +62,7 @@ Other builds or service packs have a different md5. The tool refuses those inste
   patched disk. Only the disk changed. It boots to the desktop at 1280x1024.
 - 2026-10-27: scripts and this README in git: `tenox7/qemu`, branch `rm200`, `contrib/rm200/cirrus-1280/`.
 - 2026-10-30: moved to `machines/rm200/cirrus-1280/` on branch `master`.
+- 2026-11-01: the repo is now `tenox7/lemu`, and the `rm200` branch is gone.
 
 ## Tested (on a clone of nt40.hda, not the live disk)
 

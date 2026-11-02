@@ -10,4 +10,4 @@ Network is QEMU user mode NAT; AIX is 10.0.2.15 with gateway 10.0.2.2 and DNS 10
 Run shutdown -F: QEMU quits when AIX has halted.
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc64 --version names the commit.
+QEMU source: https://github.com/tenox7/lemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc64 --version names the commit.

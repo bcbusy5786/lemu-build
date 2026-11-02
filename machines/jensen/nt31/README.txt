@@ -9,4 +9,4 @@ QEMU monitor: Ctrl-Alt-2 (back with Ctrl-Alt-1). CD-ROM and floppy are empty: ch
 Send Ctrl-Alt-Del from the monitor with: sendkey ctrl-alt-delete
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-alpha --version names the commit.
+QEMU source: https://github.com/tenox7/lemu branch master (GPLv2, see bin/COPYING). qemu-system-alpha --version names the commit.

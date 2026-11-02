@@ -9,4 +9,4 @@ Telnet localhost 7223 and ssh localhost 7222 reach AIX once its network is set u
 Run shutdown -F and wait for "Halt completed" before quitting QEMU.
 macOS: if the binary is blocked, run xattr -cr . in this folder.
 
-QEMU source: https://github.com/tenox7/qemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc64 --version names the commit.
+QEMU source: https://github.com/tenox7/lemu branch master (GPLv2, see bin/COPYING). qemu-system-ppc64 --version names the commit.

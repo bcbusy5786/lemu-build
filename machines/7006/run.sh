@@ -2,7 +2,7 @@
 # AIX 3.2.5 on QEMU 7006 (RS/6000 41T) with GXT150L graphics. Boots installer CD while disk is empty.
 # Ctrl-A x quit, Ctrl-A c monitor. Telnet: localhost:2323, rsh: 2514. CD=media/aix325-vol2.iso picks another CD.
 # LED display and key switch in the panel window (click to turn the key); KEY=service sets it at power-on.
-# Expects qemu/ (master branch of github.com/tenox7/qemu, built) and media/ with aix325-vol1.iso,
+# Expects qemu/ (master branch of github.com/tenox7/lemu, built) and media/ with aix325-vol1.iso,
 # 11H5778_Microcode_IBM_7006-41T_U5.BIN and GXT150L_88G2832_U35.BIN from
 # http://bitsavers.trailing-edge.com/pdf/ibm/rs6000/firmware/7006-41T_fw/
 cd "$(dirname "$0")" || exit 1
