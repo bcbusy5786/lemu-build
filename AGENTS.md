@@ -41,6 +41,9 @@ used by AI agents, so AI-written code is welcome here.
 
 ## Upstream QEMU
 
+- **Taking in new QEMU code:** merge QEMU's `master` into `master` about
+  once a week. Never rebase or force-push `master`. Use the skill in
+  `.agents/skills/upstream-sync`.
 - LEMU code never goes to QEMU. QEMU does not accept AI-generated code;
   see `docs/devel/code-provenance.rst`.
 - Security bugs in upstream QEMU code follow QEMU's own process
