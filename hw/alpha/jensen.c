@@ -76,6 +76,7 @@ struct JensenMachineState {
     uint8_t dma_stop[8][3];
     uint8_t nmi_control, nmi_extended, nmi_mask;
     bool keyboard_locked;
+    bool nt_idle;
     bool s3_928;
     uint32_t s3_vram_mb;
     char *s3_romfile;
@@ -792,6 +793,7 @@ static void jensen_init(MachineState *machine)
     clock_set_hz(refclk, 150000000);
     s->cpu = ALPHA_CPU(object_new(machine->cpu_type));
     qdev_connect_clock_in(DEVICE(s->cpu), "cpu-refclk", refclk);
+    s->cpu->nt_idle = s->nt_idle;
     qdev_realize_and_unref(DEVICE(s->cpu), NULL, &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
@@ -984,6 +986,16 @@ static void jensen_set_keyboard_locked(Object *obj, bool value, Error **errp)
     JENSEN_MACHINE(obj)->keyboard_locked = value;
 }
 
+static bool jensen_get_nt_idle(Object *obj, Error **errp)
+{
+    return JENSEN_MACHINE(obj)->nt_idle;
+}
+
+static void jensen_set_nt_idle(Object *obj, bool value, Error **errp)
+{
+    JENSEN_MACHINE(obj)->nt_idle = value;
+}
+
 static bool jensen_get_s3_928(Object *obj, Error **errp)
 {
     return JENSEN_MACHINE(obj)->s3_928;
@@ -1043,6 +1055,7 @@ static void jensen_set_s3_romfile(Object *obj, const char *value, Error **errp)
 static void jensen_instance_init(Object *obj)
 {
     JENSEN_MACHINE(obj)->s3_vram_mb = 2;
+    JENSEN_MACHINE(obj)->nt_idle = true;
 }
 
 static void jensen_finalize(Object *obj)
@@ -1099,6 +1112,11 @@ static void jensen_class_init(ObjectClass *oc, const void *data)
                                    jensen_set_keyboard_locked);
     object_class_property_set_description(oc, "keyboard-locked",
         "Front-panel key-lock switch (default: unlocked)");
+    object_class_property_add_bool(oc, "nt-idle", jensen_get_nt_idle,
+                                   jensen_set_nt_idle);
+    object_class_property_set_description(oc, "nt-idle",
+        "Halt the CPU in the Windows NT idle loop instead of spinning "
+        "(default: on)");
     object_class_property_add_str(oc, "rtc-ram-file", jensen_get_rtc_ram_file,
                                   jensen_set_rtc_ram_file);
     object_class_property_set_description(oc, "rtc-ram-file",
