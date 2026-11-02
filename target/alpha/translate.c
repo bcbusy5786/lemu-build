@@ -3852,6 +3852,140 @@ static bool trans_bgt(DisasContext *s, arg_bgt *a)
     return true;
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * Windows NT for Alpha spins when it is idle, see nt_idle.c. These are its
+ * idle loops, each word with its mask; the masks skip load and branch
+ * offsets. Both check the DPC queue and the next thread, and the ldl words
+ * that load them go to helper_nt_idle().
+ */
+#define NT_IDLE_DI      0x00000008      /* call_pal di */
+#define NT_IDLE_NEXT    0xa20b0008      /* ldl a0,8(s2) */
+
+/*
+ * NT 4.0 enables interrupts at the top of the loop and disables them for
+ * the checks, so the helper runs at the di.
+ */
+static const uint32_t nt40_idle_loop[][2] = {
+    { 0x00000009, 0xffffffff },     /* loop: call_pal ei */
+    { 0x00000008, 0xffffffff },     /* call_pal di */
+    { 0xa0290000, 0xffff0000 },     /* ldl   t0,n(s0)       DPC count */
+    { 0xe4200000, 0xffe00000 },     /* beq   t0,1f */
+};
+static const uint32_t nt40_idle_next[][2] = {
+    { 0xa2090000, 0xffff0000 },     /* 1: ldl a0,n(s0)      next thread */
+    { 0xe6000000, 0xffe00000 },     /* beq   a0,2f */
+};
+static const uint32_t nt40_idle_hal[][2] = {
+    { 0xd3400000, 0xffe00000 },     /* 2: bsr ra,HalProcessorIdle */
+    { 0xc3e00000, 0xffe00000 },     /* br    loop */
+};
+
+/*
+ * NT 3.1 keeps interrupts enabled and now and then polls the kernel
+ * debugger, so the helper runs at the next thread check that ends the loop.
+ */
+static const uint32_t nt31_idle_loop[][2] = {
+    { 0x41203129, 0xffffffff },     /* loop: subl s0,1,s0 */
+    { 0xf9200000, 0xffe00000 },     /* bge   s0,1f */
+    { 0x213f4e20, 0xffffffff },     /* lda   s0,20000 */
+    { 0xd3400000, 0xffe00000 },     /* bsr   ra,KdPollBreakIn */
+    { 0xe4000000, 0xffe00000 },     /* beq   v0,1f */
+    { 0x43e33400, 0xffffffff },     /* mov   0x19,v0 */
+    { 0x000000ad, 0xffffffff },     /* call_pal callkd */
+    { 0xa02c0000, 0xffffffff },     /* 1: ldl t0,0(s3)      DPC list */
+    { 0x402c05a2, 0xffffffff },     /* cmpeq t0,s3,t1 */
+    { 0xf4400000, 0xffe00000 },     /* bne   t1,2f */
+};
+#define NT31_IDLE_DPC   7
+static const uint32_t nt31_idle_next[][2] = {
+    { 0xa20b0000, 0xffff0000 },     /* 2: ldl a0,n(s2)      next thread */
+    { 0xe6000000, 0xffe00000 },     /* beq   a0,loop */
+};
+
+/* Whether the n words at addr match loop and lie on the page of the TB */
+static bool nt_idle_match(DisasContext *s, CPUAlphaState *env, vaddr addr,
+                          const uint32_t (*loop)[2], int n)
+{
+    int i;
+
+    if (!translator_is_same_page(&s->base, addr) ||
+        !translator_is_same_page(&s->base, addr + 4 * (n - 1))) {
+        return false;
+    }
+    for (i = 0; i < n; i++) {
+        uint32_t insn = translator_ldl_end(env, &s->base, addr + 4 * i,
+                                           MO_LE);
+
+        if ((insn & loop[i][1]) != loop[i][0]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* The target of the matched branch at addr */
+static vaddr nt_idle_target(DisasContext *s, CPUAlphaState *env, vaddr addr)
+{
+    uint32_t insn = translator_ldl_end(env, &s->base, addr, MO_LE);
+
+    return addr + 4 + 4 * (int64_t)sextract32(insn, 0, 21);
+}
+
+/* At a di or ldl in an NT idle loop, let helper_nt_idle() halt */
+static void gen_nt_idle(DisasContext *s, CPUAlphaState *env, vaddr pc,
+                        uint32_t insn)
+{
+    uint32_t dpc, list;
+    vaddr t, u;
+
+    /* Off RAM, translator_ldl_end() would record these words as code */
+    if (tb_page_addr0(s->base.tb) == -1) {
+        return;
+    }
+    if (insn == NT_IDLE_DI) {
+        if (!nt_idle_match(s, env, pc - 4, nt40_idle_loop,
+                           ARRAY_SIZE(nt40_idle_loop))) {
+            return;
+        }
+        t = nt_idle_target(s, env, pc + 8);
+        if (!nt_idle_match(s, env, t, nt40_idle_next,
+                           ARRAY_SIZE(nt40_idle_next))) {
+            return;
+        }
+        u = nt_idle_target(s, env, t + 4);
+        if (!nt_idle_match(s, env, u, nt40_idle_hal,
+                           ARRAY_SIZE(nt40_idle_hal)) ||
+            nt_idle_target(s, env, u + 4) != pc - 4) {
+            return;
+        }
+        dpc = translator_ldl_end(env, &s->base, pc + 4, MO_LE);
+        insn = translator_ldl_end(env, &s->base, t, MO_LE);
+        list = 0;
+    } else {
+        if (!nt_idle_match(s, env, pc, nt31_idle_next,
+                           ARRAY_SIZE(nt31_idle_next))) {
+            return;
+        }
+        t = nt_idle_target(s, env, pc + 4);
+        if (!nt_idle_match(s, env, t, nt31_idle_loop,
+                           ARRAY_SIZE(nt31_idle_loop)) ||
+            nt_idle_target(s, env, t + 4 * (ARRAY_SIZE(nt31_idle_loop) - 1))
+            != pc) {
+            return;
+        }
+        dpc = translator_ldl_end(env, &s->base, t + 4 * NT31_IDLE_DPC, MO_LE);
+        list = 1;
+    }
+    /* With -icount, make this the last insn of the TB: the helper reads time */
+    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        translator_io_start(&s->base);
+    }
+    gen_helper_nt_idle(tcg_env, tcg_constant_i32(dpc), tcg_constant_i32(insn),
+                       tcg_constant_i32(list));
+}
+#endif
+
 static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
@@ -3874,6 +4008,9 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->hwe_enabled = EX_TBFLAG(tb_flags, HWE);
     dc->sde_enabled = EX_TBFLAG(tb_flags, SDE);
     dc->fp_enabled = EX_TBFLAG(tb_flags, FEN);
+    dc->nt_idle = cpu->nt_idle && !dc->pal_mode &&
+                  dc->normal_mmu_idx == AlphaMMUIdx_Kernel &&
+                  !(tb_cflags(dc->base.tb) & CF_SINGLE_STEP);
 
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
@@ -3909,6 +4046,12 @@ static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     s->pc_curr = pc;
     s->insn = insn = translator_ldl_end(env, dcbase, pc, MO_LE);
     s->base.pc_next = pc + 4;
+
+#ifndef CONFIG_USER_ONLY
+    if (s->nt_idle && (insn == NT_IDLE_DI || insn == NT_IDLE_NEXT)) {
+        gen_nt_idle(s, env, pc, insn);
+    }
+#endif
 
     if (unlikely(!decode(s, insn))) {
         unallocated_encoding(s);

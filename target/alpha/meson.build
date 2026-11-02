@@ -20,6 +20,7 @@ alpha_system_ss.add(files(
   'alpha-qmp-cmds.c',
   'arch_dump.c',
   'machine.c',
+  'nt_idle.c',
 ))
 
 target_arch += {'alpha': alpha_ss}

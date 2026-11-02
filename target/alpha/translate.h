@@ -48,6 +48,7 @@ typedef struct DisasContext {
     bool sde_enabled;
     bool fp_enabled;
     bool insn_start_updated;
+    bool nt_idle;
 } DisasContext;
 
 /*

@@ -309,6 +309,11 @@ struct ArchCPU {
 
     /* Current power state, access guarded by BQL */
     AlphaCPUPowerState power_state;
+
+    /* Halt in the Windows NT idle loop, set by the board (nt_idle.c) */
+    bool nt_idle;
+    int64_t nt_idle_since;
+    int64_t nt_idle_last;
 };
 
 typedef struct AlphaCPUInfo {
