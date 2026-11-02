@@ -166,11 +166,29 @@ int64_t icount_to_ns(int64_t icount)
  */
 #define ICOUNT_WOBBLE (NANOSECONDS_PER_SECOND / 10)
 
-static void icount_adjust(void)
+/*
+ * 125MIPS seems a reasonable initial guess at the guest speed.
+ * It will be corrected fairly quickly anyway.
+ */
+#define ICOUNT_INITIAL_SHIFT 3
+
+/*
+ * While all vCPUs sleep, icount_sleep_warp() keeps the virtual clock with
+ * real time. So do not raise the shift for being behind then: the warp
+ * catches up instead, also after the host stopped QEMU for a while. And
+ * with sink, move the shift one step towards the initial guess: nothing
+ * measures it while the vCPUs sleep, so it keeps whatever the last busy
+ * time left. A guest that gets busy with too high a shift runs its clock
+ * far ahead of real time, takes many more timer interrupts and slows down
+ * until the shift has come down. Too low a shift makes every short busy
+ * wait of a mostly idle guest take that much longer.
+ */
+static void icount_adjust(bool sink)
 {
     int64_t cur_time;
     int64_t cur_icount;
     int64_t delta;
+    bool asleep = replay_mode == REPLAY_MODE_NONE && all_cpu_threads_idle();
 
     /* If the VM is not running, then do nothing.  */
     if (!runstate_is_running()) {
@@ -191,13 +209,18 @@ static void icount_adjust(void)
         /* The guest is getting too far ahead.  Slow time down.  */
         qatomic_set(&timers_state.icount_time_shift,
                     timers_state.icount_time_shift - 1);
-    }
-    if (delta < 0
+    } else if (delta < 0
         && timers_state.last_delta - ICOUNT_WOBBLE > delta * 2
-        && timers_state.icount_time_shift < MAX_ICOUNT_SHIFT) {
+        && timers_state.icount_time_shift < MAX_ICOUNT_SHIFT && !asleep) {
         /* The guest is getting too far behind.  Speed time up.  */
         qatomic_set(&timers_state.icount_time_shift,
                     timers_state.icount_time_shift + 1);
+    } else if (sink && asleep
+        && timers_state.icount_time_shift != ICOUNT_INITIAL_SHIFT) {
+        qatomic_set(&timers_state.icount_time_shift,
+                    timers_state.icount_time_shift +
+                    (timers_state.icount_time_shift < ICOUNT_INITIAL_SHIFT ?
+                     1 : -1));
     }
     timers_state.last_delta = delta;
     qatomic_set(&timers_state.qemu_icount_bias,
@@ -211,7 +234,7 @@ static void icount_adjust_rt(void *opaque)
 {
     timer_mod(timers_state.icount_rt_timer,
               qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT) + 1000);
-    icount_adjust();
+    icount_adjust(true);
 }
 
 static void icount_adjust_vm(void *opaque)
@@ -219,7 +242,7 @@ static void icount_adjust_vm(void *opaque)
     timer_mod(timers_state.icount_vm_timer,
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    NANOSECONDS_PER_SECOND / 10);
-    icount_adjust();
+    icount_adjust(false);
 }
 
 int64_t icount_round(int64_t count)
@@ -295,15 +318,17 @@ static void icount_timer_cb(void *opaque)
 #define ICOUNT_ALIGN_AHEAD  (10 * SCALE_MS)
 
 /*
- * With align=on, keep QEMU_CLOCK_VIRTUAL with real time while all vCPUs
- * sleep. The plain warp starts only when the main loop notices that the
- * vCPUs sleep, and a woken vCPU runs a little later still, so every sleep
- * loses that time. A guest that sleeps between its timer ticks falls
- * behind real time for good, because align=on catches up only while a
- * vCPU runs. Also without ppoll() (macOS) the main loop sleeps whole
- * milliseconds, so every short wait would take at least one.
+ * With align=on or shift=auto, keep QEMU_CLOCK_VIRTUAL with real time while
+ * all vCPUs sleep. The plain warp starts only when the main loop notices
+ * that the vCPUs sleep, and a woken vCPU runs a little later still, so
+ * every sleep loses that time. A guest that sleeps between its timer ticks
+ * falls behind real time for good: align=on catches up only while a vCPU
+ * runs, and shift=auto makes up for it with a larger shift, which then
+ * runs the guest clock far too fast once the guest gets busy. Also without
+ * ppoll() (macOS) the main loop sleeps whole milliseconds, so with
+ * align=on every short wait would take at least one.
  */
-static void icount_align_warp(void)
+static void icount_sleep_warp(void)
 {
     int64_t clock, deadline, lag;
 
@@ -326,12 +351,13 @@ static void icount_align_warp(void)
     lag = clock - icount_get();
 
     if (deadline <= lag ||
-        (deadline <= ICOUNT_ALIGN_JUMP &&
+        (icount_align_option && deadline <= ICOUNT_ALIGN_JUMP &&
          deadline - lag <= ICOUNT_ALIGN_AHEAD)) {
         /*
          * Go to the deadline now, as sleep=off does. Behind real time this
          * catches up one deadline at a time, so no timer tick is lost. If
          * it gets the guest ahead, align_clocks() lets the vCPU sleep.
+         * shift=auto has no such sleep, so it only catches up.
          */
         seqlock_write_lock(&timers_state.vm_clock_seqlock,
                            &timers_state.vm_clock_lock);
@@ -395,8 +421,9 @@ void icount_start_warp_timer(void)
         }
     }
 
-    if (icount_align_option && replay_mode == REPLAY_MODE_NONE) {
-        icount_align_warp();
+    if ((icount_align_option || icount_enabled() == ICOUNT_ADAPTATIVE) &&
+        replay_mode == REPLAY_MODE_NONE) {
+        icount_sleep_warp();
         return;
     }
 
@@ -534,11 +561,7 @@ bool icount_configure(QemuOpts *opts, Error **errp)
 
     icount_enable_adaptive();
 
-    /*
-     * 125MIPS seems a reasonable initial guess at the guest speed.
-     * It will be corrected fairly quickly anyway.
-     */
-    timers_state.icount_time_shift = 3;
+    timers_state.icount_time_shift = ICOUNT_INITIAL_SHIFT;
 
     /*
      * Have both realtime and virtual time triggers for speed adjustment.
