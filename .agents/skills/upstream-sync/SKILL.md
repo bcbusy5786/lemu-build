@@ -6,8 +6,9 @@ description: >-
   replaced, a build, feature lists, qtests and guest boots, then land
   and push only after the user says yes. Use whenever the user wants to
   sync, update, pull or merge from upstream QEMU, asks how far behind
-  QEMU LEMU is or whether upstream still merges cleanly, or mentions
-  rebasing LEMU onto QEMU.
+  QEMU LEMU is or whether upstream still merges cleanly, or asks for a
+  "rebase" (onto QEMU, onto upstream, or just "rebase"): here that word
+  means this merge.
 ---
 
 # Syncing LEMU with upstream QEMU
@@ -26,6 +27,10 @@ new QEMU work, merge QEMU's `master` into LEMU's `master`.
 - **Merge, never rebase.** Never rebase, reset or force-push `master`.
   It is public, the kits print its commit ids, and other agents work on
   top of it.
+- **"Rebase" means this merge.** The user may ask for a "rebase" when
+  they mean taking in new QEMU code. Do the merge, and say in one line
+  that it is a merge, not a rebase, and why. If they still want a real
+  rebase, tell them what it breaks and ask before you do anything.
 - **Not with GitHub's buttons.** Don't use "Sync fork": its "Discard
   commits" deletes LEMU's work. Don't use `gh repo sync --force`: it
   resets `master` to QEMU.

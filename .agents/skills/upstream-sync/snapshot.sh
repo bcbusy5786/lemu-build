@@ -27,7 +27,7 @@ die() {
 
 [ -f build.ninja ] && [ -f config-host.mak ] || die "run it in a configured build folder"
 src=$(sed -n 's/^SRC_PATH=//p' config-host.mak)
-features=$src/machines/rm200/release/features.sh
+features=$src/machines/release/features.sh
 [ -f "$features" ] || die "no $features"
 py=./pyvenv/bin/python3
 pass='^(OK|SKIP|EXPECTEDFAIL)$'
