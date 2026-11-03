@@ -16,6 +16,7 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_nested.c',
   'spapr_iommu.c',
   'spapr_rtas.c',
+  'spapr_panel.c',
   'spapr_pci.c',
   'spapr_rtc.c',
   'spapr_drc.c',

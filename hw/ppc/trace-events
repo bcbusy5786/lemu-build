@@ -62,6 +62,10 @@ spapr_drc_unrealize(uint32_t index) "drc: 0x%"PRIx32
 spapr_ovec_parse_vector(int vector, int byte, uint16_t vec_len, uint8_t entry) "read guest vector %2d, byte %3d / %3d: 0x%.2x"
 spapr_ovec_populate_dt(int byte, uint16_t vec_len, uint8_t entry) "encoding guest vector byte %3d / %3d: 0x%.2x"
 
+# spapr_panel.c
+spapr_panel_checkpoint(const char *code) "firmware checkpoint %s"
+spapr_panel_display_character(uint8_t c) "0x%02x"
+
 # spapr_drc.c
 spapr_rtas_get_sensor_state_not_supported(uint32_t index, uint32_t type) "sensor index: 0x%"PRIx32", type: %"PRIu32
 spapr_rtas_get_sensor_state_invalid(uint32_t index) "sensor index: 0x%"PRIx32

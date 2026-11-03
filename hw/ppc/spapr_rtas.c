@@ -40,6 +40,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "hw/ppc/spapr_panel.h"
 #include "hw/ppc/ppc.h"
 
 #include <libfdt.h>
@@ -76,7 +77,10 @@ static void rtas_display_character(PowerPCCPU *cpu, SpaprMachineState *spapr,
     uint8_t c = rtas_ld(args, 0);
     SpaprVioDevice *sdev = vty_lookup(spapr, 0);
 
-    if (!sdev) {
+    if (spapr->panel_dev) {
+        spapr_panel_display_character(spapr->panel_dev, c);
+        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    } else if (!sdev) {
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
     } else {
         vty_putchars(sdev, &c, sizeof(c));

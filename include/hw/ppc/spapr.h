@@ -199,6 +199,8 @@ struct SpaprMachineState {
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool want_stdout_path;
+    bool panel;                 /* -M pseries,panel=on */
+    DeviceState *panel_dev;
     uint32_t vsmt;       /* Virtual SMT mode (KVM's "core stride") */
 
     /* Nested HV support (TCG only) */

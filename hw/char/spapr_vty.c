@@ -6,6 +6,7 @@
 #include "chardev/char-fe.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_panel.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "qom/object.h"
@@ -123,7 +124,11 @@ static target_ulong h_put_term_char(PowerPCCPU *cpu, SpaprMachineState *spapr,
     *((uint64_t *)buf) = cpu_to_be64(char0_7);
     *((uint64_t *)buf + 1) = cpu_to_be64(char8_15);
 
-    vty_putchars(sdev, buf, len);
+    if (spapr->panel_dev) {
+        spapr_panel_vty_write(spapr->panel_dev, sdev, buf, len);
+    } else {
+        vty_putchars(sdev, buf, len);
+    }
 
     return H_SUCCESS;
 }

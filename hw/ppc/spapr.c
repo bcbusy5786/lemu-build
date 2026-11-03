@@ -91,6 +91,8 @@
 #include "hw/mem/memory-device.h"
 #include "hw/ppc/spapr_tpm_proxy.h"
 #include "hw/ppc/spapr_nvdimm.h"
+#include "hw/ppc/spapr_panel.h"
+#include "hw/core/sysbus.h"
 #include "hw/ppc/spapr_numa.h"
 
 #include <libfdt.h>
@@ -1084,6 +1086,15 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,lrdr-capacity",
                      lrdr_capacity, sizeof(lrdr_capacity)));
+
+    if (spapr->panel_dev) {
+        /* the display of the operator panel, for display-character */
+        _FDT(fdt_setprop_cell(fdt, rtas, "ibm,display-line-length",
+                              SPAPR_PANEL_COLS));
+        _FDT(fdt_setprop_cell(fdt, rtas, "ibm,display-number-of-lines",
+                              SPAPR_PANEL_ROWS));
+        _FDT(fdt_setprop_cell(fdt, rtas, "ibm,form-feed", '\f'));
+    }
 
     spapr_dt_rtas_fadump(spapr, fdt, rtas);
 
@@ -3075,6 +3086,15 @@ static void spapr_machine_init(MachineState *machine)
         spapr->want_stdout_path = true;
     }
 
+    if (spapr->panel) {
+        spapr->panel_dev = qdev_new(TYPE_SPAPR_PANEL);
+        spapr->panel_dev->id = g_strdup("panel");
+        object_property_add_child(OBJECT(spapr), "front-panel",
+                                  OBJECT(spapr->panel_dev));
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(spapr->panel_dev),
+                                 &error_fatal);
+    }
+
     if (machine->usb) {
         pci_create_simple(phb->bus, -1, "nec-usb-xhci");
 
@@ -3352,6 +3372,16 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
+static bool spapr_get_panel(Object *obj, Error **errp)
+{
+    return SPAPR_MACHINE(obj)->panel;
+}
+
+static void spapr_set_panel(Object *obj, bool value, Error **errp)
+{
+    SPAPR_MACHINE(obj)->panel = value;
+}
+
 static bool spapr_get_vof(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3496,6 +3526,11 @@ static void spapr_instance_init(Object *obj)
     object_property_add_bool(obj, "x-vof", spapr_get_vof, spapr_set_vof);
     object_property_set_description(obj, "x-vof",
                                     "Enable Virtual Open Firmware (experimental)");
+
+    object_property_add_bool(obj, "panel", spapr_get_panel, spapr_set_panel);
+    object_property_set_description(obj, "panel",
+                                    "Operator panel window with a power light"
+                                    " and a display for the progress codes");
 
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;

@@ -7,6 +7,11 @@ ready-to-run tarball: `aix53` and `aix72`.
 AIX 5.3 needs device-tree fixes that `aix53/run.sh` gives SLOF as nvramrc
 Forth, and it runs CDE on an ATI ES1000 with a USB keyboard and mouse.
 
+`-M pseries,panel=on` adds an operator panel window, like the 40P front panel:
+a power light and a display of 2 lines of 16 characters. SLOF's checkpoint
+codes and the AIX boot messages and progress codes show there instead of on
+the serial console.
+
 `aix72/install.sh` installs AIX 7.2 on an emulated POWER8 from `hdisk0.qcow2`
 (created on first run), falling back to the install DVD next to it;
 `./install.sh cd` forces the DVD. Use the TL5 SP3 DVD
