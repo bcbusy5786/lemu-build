@@ -17,6 +17,7 @@ kit=$(cd "$1" && pwd)
 case $(basename "$kit") in
 nt31mips-qemu) g=jazz/nt31 ;;
 NTRM200) g=rm200/nt40 ;;
+NTRM200-SMP) g=rm200/nt40smp ;;
 NTRM300-SMP4) g=rm200/nt40srv ;;
 sinix-rm200) g=rm200/sinix545 ;;
 *) echo "$0: no run scripts for kit $(basename "$kit"); add it here" >&2; exit 1 ;;
