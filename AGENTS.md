@@ -19,8 +19,9 @@ used by AI agents, so AI-written code is welcome here.
 - **Branch `master` only.** The machine branches are being folded into
   `master`. Don't commit to them.
 - **One folder per machine:** `machines/<machine>/` holds notes, guest
-  tools, a `run.sh` per guest system and the release scripts. Don't add
-  new files to `contrib/`; upstream's own folders there stay.
+  tools, a `run.sh` per guest system and the release scripts.
+  `machines/release/` builds QEMU once for the kits of all machines.
+  Don't add new files to `contrib/`; upstream's own folders there stay.
 - **Window title:** every `run.sh` and `run.cmd` gives QEMU a `-name` with
   the guest system, the CPU and the machine, such as
   `-name "Windows NT 4.0 ALPHA JENSEN"` or
