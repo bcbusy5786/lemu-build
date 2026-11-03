@@ -8,7 +8,7 @@ Linux-aarch64) q=bin/linux-aarch64/qemu-system-ppc64 ;;
 *) echo "No QEMU binary for $(uname -sm)" >&2; exit 1 ;;
 esac
 # SLOF runs nvramrc at every boot. It crashes if nvramrc is longer than about
-# 1000 characters, so the Forth is in two variables that nvramrc evaluates.
+# 1000 characters, so the Forth is in variables that nvramrc evaluates.
 # aixrc1: device-tree fixes AIX 5.3 needs
 AIXRC1=(
 	# /vdevice interrupt ranges
@@ -44,22 +44,50 @@ AIXRC2=(
 	'80000000 encode-int 0 encode-int encode+ 0 encode-int encode+ 0 encode-int encode+ 40000000 encode-int encode+'
 	's" ibm,dma-window" property device-end'
 )
+# aixrc3, aixrc4: a display driver for the ES1000, so the firmware and the AIX boot banner
+# show on the screen. 640x480, 8 bits, the mode and palette of the JS21 SLOF driver.
+AIXRC3=(
+	'dev /pci@800000020000000/vga@0 7 4 config-w!'
+	'0 0 2000010 1 " map-in" get-node parent $call-static value fb'
+	'0 0 2000018 1 " map-in" get-node parent $call-static value rg'
+	': ar! rg + rl!-le ; : ar@ rg + rl@-le ; : p b4 ar! ;'
+	'4f0063 200 ar! 8c02a2 204 ar! 1df020c 208 ar! 8201ea 20c ar! 0 224 ar! 50 22c ar!'
+	'50 ar@ f8fff0ff and 3000200 or 50 ar! 8000 54 ar!'
+	'0 b0 rg + rb! 0 p aa p aa00 p aaaa p aa0000 p aa00aa p aa5500 p aaaaaa p'
+	'555555 p 5555ff p 55ff55 p 55ffff p ff5555 p ff55ff p ffff55 p ffffff p'
+	'ff b0 rg + rb! ffffff p fb 4b000 0 rfill device-end'
+)
+AIXRC4=(
+	'dev /pci@800000020000000/vga@0 false value inst?'
+	': display-install inst? 0= IF fb to frame-buffer-adr default-font set-font'
+	'280 1e0 50 1e 1 fb-install true to inst? THEN ;'
+	": display-remove ; ' display-install is-install ' display-remove is-remove"
+	's" display" device-type 280 encode-int s" width" property 1e0 encode-int s" height" property'
+	'8 encode-int s" depth" property 280 encode-int s" linebytes" property'
+	's" screen" get-node node>path set-alias device-end'
+	# after CAS AIX no longer uses the firmware console: give input back to the serial
+	# port and stop the USB controller, so AIX finds it idle (no usbhc0 error)
+	'dev / : ibm,client-architecture-support ibm,client-architecture-support " hvterm" input'
+	's" hc-cleanup" s" /pci@800000020000000/usb-ohci@1" find-node find-method IF execute THEN ; device-end'
+)
 
 # AIX scans virtual SCSI from target 1 (LUN 0x81), so CD and disk use scsi-id=1.
 # Keep id=hd0: QEMU sends it as the disk's unique ID, and AIX boots only from that ID.
 # Keep the graphics in PCI slot 0 and USB in slot 1: aixrc2 uses those node names.
 exec "$q" \
  -name "AIX 5.3 POWER PSERIES" \
- -M pseries,ic-mode=xics,usb=off,max-cpu-compat=power6,cap-hpt-max-page-size=16M \
+ -M pseries,panel=on,ic-mode=xics,usb=off,max-cpu-compat=power6,cap-hpt-max-page-size=16M \
  -cpu power7_v2.3 -smp 1 -m 2G \
  -serial mon:stdio \
  -vga none \
- -prom-env input-device=/vdevice/vty@71000000 \
- -prom-env output-device=/vdevice/vty@71000000 \
+ -prom-env input-device=keyboard \
+ -prom-env output-device=screen \
  -prom-env 'use-nvramrc?=true' \
  -prom-env "aixrc1=${AIXRC1[*]}" \
  -prom-env "aixrc2=${AIXRC2[*]}" \
- -prom-env 'nvramrc=aixrc1 evaluate aixrc2 evaluate' \
+ -prom-env "aixrc3=${AIXRC3[*]}" \
+ -prom-env "aixrc4=${AIXRC4[*]}" \
+ -prom-env 'nvramrc=aixrc1 evaluate aixrc2 evaluate aixrc3 evaluate aixrc4 evaluate' \
  -device spapr-vscsi,id=vscsi0 \
  -drive if=none,id=cd0,media=cdrom,readonly=on \
  -device scsi-cd,bus=vscsi0.0,drive=cd0,scsi-id=1,vendor=AIX,product=VOPTA \
