@@ -5,6 +5,9 @@ and AIX 5.1 for PowerPC. Each system has a folder here with the `run.sh`,
 `run.cmd` and `README.txt` of its ready-to-run tarball: `nt`, `os2`,
 `solaris`, `aix41`, `aix43` and `aix51`.
 
+QEMU halts the CPU while any of these systems is idle, so an idle VM uses
+2-6% of a host core. `-M 40p,idle=off` lets their idle loops spin instead.
+
 ## Release
 
 `release/` builds the tarballs: `build-linux.sh amd64|arm64 OUT` and

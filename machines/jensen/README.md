@@ -21,6 +21,7 @@ Jensen.
 | `s3-romfile=fw/928-n9.bin` | the card's video BIOS (Number Nine) |
 | `rtc-ram-file=rtc.bin` | keeps the 66 bytes of battery-backed RAM in a file |
 | `keyboard-locked=on` | the front panel key lock |
+| `nt-idle=off` | let NT's idle loop spin; by default QEMU halts the CPU while NT is idle, so an idle VM uses about 2% of a host core |
 
 ## Files
 

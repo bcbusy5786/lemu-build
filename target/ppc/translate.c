@@ -169,6 +169,7 @@ void ppc_translate_init(void)
 struct DisasContext {
     DisasContextBase base;
     bool fetch_shadow;
+    bool os_idle;
     target_ulong cia;  /* current instruction address */
     uint32_t opcode;
     /* Routine used to access memory */
@@ -5144,6 +5145,9 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     if ((hflags >> HFLAGS_BE) & 1) {
         ctx->singlestep_flags |= CPU_BRANCH_STEP;
     }
+
+    ctx->os_idle = env->os_idle && !ctx->pr && !ctx->singlestep_flags &&
+                   !(tb_cflags(ctx->base.tb) & CF_SINGLE_STEP);
 }
 
 static void ppc_tr_tb_start(DisasContextBase *db, CPUState *cs)
@@ -5183,6 +5187,217 @@ static bool insn_refetches(uint32_t insn)
     }
 }
 
+#if !defined(CONFIG_USER_ONLY)
+/*
+ * AIX waits for work in waitproc, which spins until an interrupt
+ * dispatches a thread.  It sets MSR[POW] only through power management
+ * hardware that the 40p lacks, and the 7006's 601 has no POW at all, so
+ * halt at the loop's back branch instead.  Each loop runs from the branch
+ * target to the branch; 0 matches any bl.
+ */
+static const struct {
+    int crbit;    /* CR bit that makes the branch fall through, or -1 */
+    int len;
+    uint32_t insn[19];
+} aix_idle_loops[] = {
+    /* 4.3.3 */
+    { 30, 6, { 0x40820000, 0x4fda2342, 0x419efff8, 0x4096000c, 0x2f840400,
+               0x409effec } },
+    /* 5.1 */
+    { 22, 6, { 0x40860000, 0x4080fffc, 0x419afff8, 0x409e000c, 0x2e850400,
+               0x4096ffec } },
+    /* 3.2.5: a lone b ., which only an interrupt can leave */
+    { -1, 1, { 0x48000000 } },
+    /* 4.1.5 */
+    { -1, 19, { 0x801f006c, 0x807e0030, 0x2c000002, 0x2c830020, 0x41820008,
+                0x40820000, 0x4184000c, 0x4182fffc, 0x4bfffff4, 0x387d0000,
+                0x38800001, 0, 0x817e0004, 0, 0x80410014, 0x387d0000,
+                0x3880ffff, 0, 0x4bffffb8 } },
+};
+
+static void gen_aix_idle(DisasContext *ctx, CPUPPCState *env, uint32_t insn,
+                         MemOp mo_endian)
+{
+    for (int i = 0; i < ARRAY_SIZE(aix_idle_loops); i++) {
+        const uint32_t *loop = aix_idle_loops[i].insn;
+        int len = aix_idle_loops[i].len;
+        target_ulong start = ctx->cia - (len - 1) * 4;
+        int j;
+
+        if (insn != loop[len - 1] || tb_page_addr0(ctx->base.tb) == -1 ||
+            !translator_is_same_page(&ctx->base, start)) {
+            continue;
+        }
+        for (j = 0; j < len - 1; j++) {
+            uint32_t w = translator_ldl_end(env, &ctx->base, start + j * 4,
+                                            mo_endian);
+
+            if (loop[j] ? w != loop[j] : (w & 0xfc000003) != 0x48000001) {
+                break;
+            }
+        }
+        if (j == len - 1) {
+            gen_helper_aix_idle(tcg_env,
+                                tcg_constant_i32(aix_idle_loops[i].crbit),
+                                tcg_constant_tl(start));
+            return;
+        }
+    }
+}
+
+/*
+ * Windows NT, Solaris and OS/2 for PowerPC run little-endian and spin in
+ * their idle loops too. These are the loops' words, each with its mask;
+ * the masks skip offsets, displacements and registers that differ between
+ * builds.
+ *
+ * NT 4.0's KiIdleLoop enables interrupts for an isync, disables them to
+ * check its DPC list and its next thread, and calls HalProcessorIdle,
+ * which only enables interrupts again. This loop starts at the mtmsr that
+ * enables interrupts, and the helper goes right after it.
+ */
+static const uint32_t nt_idle_loop[][2] = {
+    { 0x7e400124, 0xffffffff },     /* mtmsr r18           enable */
+    { 0x4c00012c, 0xffffffff },     /* isync */
+    { 0x7e200124, 0xffffffff },     /* mtmsr r17           disable */
+    { 0x4c000382, 0xffffffff },     /* cror  0,0,0 */
+    { 0x80790000, 0xffffffff },     /* lwz   r3,0(r25)     DPC list */
+    { 0x7c03c800, 0xffffffff },     /* cmpw  r3,r25        empty */
+    { 0x41820000, 0xffff0003 },     /* beq   1f */
+    { 0x633f0000, 0xffffffff },     /* ori   r31,r25,0 */
+    { 0x48000001, 0xfc000003 },     /* bl    KiProcessDpcList */
+    { 0x9ae00000, 0xffff0000 },     /* stb   r23,DispatchInterrupt */
+    { 0x83fd0000, 0xffff0000 },     /* 1: lwz r31,n(r29)   next thread */
+    { 0x2c1f0000, 0xffffffff },     /* cmpwi r31,0 */
+    { 0x41820000, 0xffff0003 },     /* beq   idle */
+};
+#define NT_IDLE_NEXT    10
+
+/*
+ * Solaris 2.5.1 checks disp_nrunnable and calls idle_cpu, a blr. This
+ * loop and the next run from the branch target to the back branch, where
+ * the helper goes.
+ */
+static const uint32_t sol_idle_loop[][2] = {
+    { 0x819f0048, 0xffffffff },     /* lwz   r12,0x48(r31) disp_nrunnable */
+    { 0x2c0c0000, 0xffffffff },     /* cmpwi r12,0 */
+    { 0x4082fff4, 0xffffffff },     /* bne   swtch */
+    { 0x819e0000, 0xffffffff },     /* lwz   r12,0(r30)    idle_cpu */
+    { 0x7d8803a6, 0xffffffff },     /* mtlr  r12 */
+    { 0x4e800021, 0xffffffff },     /* blrl */
+    { 0x4bffffe8, 0xffffffff },     /* b     loop */
+};
+
+/*
+ * OS/2 Warp for PowerPC takes an AST if one is due, calls processor_idle,
+ * which does nothing without power management, and checks its next
+ * thread and the run queue counts of its processor set and processor.
+ */
+static const uint32_t os2_idle_loop[][2] = {
+    { 0x819f0858, 0xffffffff },     /* lwz   r12,0x858(r31) slot */
+    { 0x558b103a, 0xffffffff },     /* slwi  r11,r12,2 */
+    { 0x81800000, 0xffe00000 },     /* lwz   r12,n(rG)     &need_ast[0] */
+    { 0x7c0006ac, 0xffffffff },     /* eieio */
+    { 0x7d8c582e, 0xffffffff },     /* lwzx  r12,r12,r11 */
+    { 0x2c0c0000, 0xffffffff },     /* cmpwi r12,0 */
+    { 0x4182000c, 0xffffffff },     /* beq   1f */
+    { 0x48000001, 0xfc000003 },     /* bl    processor_disable_ints */
+    { 0x48000001, 0xfc000003 },     /* bl    ast_taken */
+    { 0x63e30000, 0xffffffff },     /* 1: ori r3,r31,0 */
+    { 0x48000001, 0xfc000003 },     /* bl    processor_idle */
+    { 0x7c0006ac, 0xffffffff },     /* eieio */
+    { 0x81800000, 0xffe0ffff },     /* lwz   r12,0(rN)     next thread */
+    { 0x2c0c0000, 0xffffffff },     /* cmpwi r12,0 */
+    { 0x40820024, 0xffffffff },     /* bne   out */
+    { 0x7c0006ac, 0xffffffff },     /* eieio */
+    { 0x81800000, 0xffe0ffff },     /* lwz   r12,0(rS)     set's count */
+    { 0x2c0c0000, 0xffffffff },     /* cmpwi r12,0 */
+    { 0x40820014, 0xffffffff },     /* bne   out */
+    { 0x7c0006ac, 0xffffffff },     /* eieio */
+    { 0x81800000, 0xffe0ffff },     /* lwz   r12,0(rP)     processor's */
+    { 0x2c0c0000, 0xffffffff },     /* cmpwi r12,0 */
+    { 0x4182ffa8, 0xffffffff },     /* beq   loop */
+};
+#define OS2_IDLE_GOT    2
+#define OS2_IDLE_NEXT   12
+#define OS2_IDLE_SET    16
+#define OS2_IDLE_PROC   20
+
+/* rA and the displacement of a D-form load */
+#define IDLE_RA(w)      extract32(w, 16, 5)
+#define IDLE_D(w)       sextract32(w, 0, 16)
+
+/* Check that the len words from start match loop, and return them in w */
+static bool idle_loop_match(DisasContext *ctx, CPUPPCState *env,
+                            MemOp mo_endian, target_ulong start,
+                            const uint32_t (*loop)[2], int len, uint32_t *w)
+{
+    int i;
+
+    /* Off RAM, translator_ldl_end() would record these words as code */
+    if (tb_page_addr0(ctx->base.tb) == -1 ||
+        !translator_is_same_page(&ctx->base, start) ||
+        !translator_is_same_page(&ctx->base, start + 4 * (len - 1))) {
+        return false;
+    }
+    for (i = 0; i < len; i++) {
+        w[i] = translator_ldl_end(env, &ctx->base, start + 4 * i, mo_endian);
+        if ((w[i] & loop[i][1]) != loop[i][0]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* After the mtmsr that enables interrupts, let helper_nt_idle() halt */
+static void gen_nt_idle(DisasContext *ctx, CPUPPCState *env, MemOp mo_endian)
+{
+    uint32_t w[ARRAY_SIZE(nt_idle_loop)];
+
+    if (idle_loop_match(ctx, env, mo_endian, ctx->cia, nt_idle_loop,
+                        ARRAY_SIZE(nt_idle_loop), w)) {
+        gen_helper_nt_idle(tcg_env, tcg_constant_tl(ctx->base.pc_next),
+                           tcg_constant_i32(IDLE_D(w[NT_IDLE_NEXT])));
+    }
+}
+
+/* At the back branch of the Solaris or OS/2 idle loop, let a helper halt */
+static void gen_le_idle(DisasContext *ctx, CPUPPCState *env, uint32_t insn,
+                        MemOp mo_endian)
+{
+    const int sol_len = ARRAY_SIZE(sol_idle_loop);
+    const int os2_len = ARRAY_SIZE(os2_idle_loop);
+    uint32_t w[ARRAY_SIZE(os2_idle_loop)];
+    target_ulong start;
+
+    if (insn == sol_idle_loop[sol_len - 1][0]) {
+        start = ctx->cia - 4 * (sol_len - 1);
+        if (idle_loop_match(ctx, env, mo_endian, start, sol_idle_loop,
+                            sol_len, w)) {
+            /* The helpers read the clock: end the TB with the branch */
+            translator_io_start(&ctx->base);
+            gen_helper_sol_idle(tcg_env, tcg_constant_tl(start),
+                                tcg_constant_i32(IDLE_RA(w[0])),
+                                tcg_constant_i32(IDLE_D(w[0])));
+        }
+    } else if (insn == os2_idle_loop[os2_len - 1][0]) {
+        start = ctx->cia - 4 * (os2_len - 1);
+        if (idle_loop_match(ctx, env, mo_endian, start, os2_idle_loop,
+                            os2_len, w)) {
+            translator_io_start(&ctx->base);
+            gen_helper_os2_idle(tcg_env, tcg_constant_tl(start),
+                tcg_constant_i32(IDLE_RA(w[0]) |
+                                 IDLE_RA(w[OS2_IDLE_GOT]) << 5 |
+                                 IDLE_RA(w[OS2_IDLE_NEXT]) << 10 |
+                                 IDLE_RA(w[OS2_IDLE_SET]) << 15 |
+                                 IDLE_RA(w[OS2_IDLE_PROC]) << 20),
+                tcg_constant_i32(extract32(w[0], 0, 16) |
+                                 extract32(w[OS2_IDLE_GOT], 0, 16) << 16));
+        }
+    }
+}
+#endif
+
 static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
@@ -5207,6 +5422,14 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         ctx->fetch_shadow = true;
     }
 
+#if !defined(CONFIG_USER_ONLY)
+    if (ctx->os_idle && ctx->le_mode) {
+        gen_le_idle(ctx, env, insn, mo_endian);
+    } else if (ctx->os_idle) {
+        gen_aix_idle(ctx, env, insn, mo_endian);
+    }
+#endif
+
     if (!is_prefix_insn(ctx, insn)) {
         ctx->opcode = insn;
         ok = (decode_insn32(ctx, insn) ||
@@ -5227,6 +5450,12 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     if (!ok) {
         gen_invalid(ctx);
     }
+#if !defined(CONFIG_USER_ONLY)
+    if (ctx->os_idle && ctx->le_mode && insn == nt_idle_loop[0][0] &&
+        ctx->base.is_jmp == DISAS_EXIT_UPDATE) {
+        gen_nt_idle(ctx, env, mo_endian);
+    }
+#endif
 
     if (ctx->fetch_shadow && ctx->base.is_jmp == DISAS_NEXT) {
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;

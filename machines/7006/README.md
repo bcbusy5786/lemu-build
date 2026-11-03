@@ -4,6 +4,9 @@
 firmware in `media/` (see its header). `tools/` has the scripts used to bring
 the machine up: console, traces, memory dumps and XCOFF disassembly.
 
+QEMU halts the CPU in AIX's idle loop, so an idle VM uses 6-15% of a host
+core instead of a whole one. `-M 7006,idle=off` lets the loop spin instead.
+
 ## Release
 
 `release/` builds the ready-to-run `aix325rs6000-qemu.tar.lz`:

@@ -44,6 +44,9 @@ typedef struct {
 #define RS6K_MACHINE(obj) \
     OBJECT_CHECK(Rs6kMachineState, (obj), MACHINE_TYPE_NAME("7006"))
 
+/* Halt the CPU in the AIX idle loop, see target/ppc/translate.c */
+static bool rs6k_idle = true;
+
 #define ICP_MAX_SRC 32
 
 typedef struct IcpSrc {
@@ -948,6 +951,7 @@ static void rs6k_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&s->machine_done);
     cpu->env.dcache_discard = rs6k_dcache_discard;
     cpu->env.dcache_discard_opaque = s;
+    cpu->env.os_idle = rs6k_idle;
     s->cpu_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT);
 
     memory_region_add_subregion(sysmem, 0, machine->ram);
@@ -1042,6 +1046,16 @@ static void rs6k_set_key(Object *obj, const char *value, Error **errp)
     ms->key = g_strdup(value);
 }
 
+static bool rs6k_get_idle(Object *obj, Error **errp)
+{
+    return rs6k_idle;
+}
+
+static void rs6k_set_idle(Object *obj, bool value, Error **errp)
+{
+    rs6k_idle = value;
+}
+
 static void rs6k_machine_init(MachineClass *mc)
 {
     ObjectClass *oc = OBJECT_CLASS(mc);
@@ -1054,6 +1068,10 @@ static void rs6k_machine_init(MachineClass *mc)
     object_class_property_set_description(oc, "key",
                                           "Key mode switch at power-on: "
                                           "normal, service or secure");
+    object_class_property_add_bool(oc, "idle", rs6k_get_idle,
+                                   rs6k_set_idle);
+    object_class_property_set_description(oc, "idle",
+        "Halt the CPU while AIX is idle, instead of spinning (default: on)");
     compat_props_add(mc->compat_props, rs6k_compat, G_N_ELEMENTS(rs6k_compat));
     mc->desc = "IBM RS/6000 7006 (PowerPC 601, Micro Channel)";
     mc->init = rs6k_init;

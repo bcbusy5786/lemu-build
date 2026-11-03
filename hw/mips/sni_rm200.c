@@ -123,9 +123,11 @@ static const char *const xbus_names[16] = {
 #define MPA_CONF        0x20    /* bits 27-28 CPU number */
 #define MPA_ITPEND      0x38    /* sources [10:0], routed to this CPU [22:12] */
 #define MPA_MSG_RECV    0x40    /* last message received */
+#define MPA_MSG_RECV2   0x48    /* timer message, reading it clears it */
 
 /* ITPEND sources: board Int0-Int4 (Int2 is the extra timer), messages */
 #define MPA_IT_LINES    0x01f
+#define MPA_LINE_XTIMER 2
 #define MPA_IT_MSG      0x080
 #define MPA_IT_CLOCKMSG 0x100
 #define MPA_IT_INTERNAL 0x780
@@ -683,6 +685,27 @@ static uint32_t mpa_routed(SniMpa *m)
     return ((cr >> 3) & MPA_IT_LINES) | ((cr >> 2) & MPA_IT_INTERNAL);
 }
 
+/*
+ * The extra timer is the clock tick of CPU 1. The NT HAL of the PCI tower
+ * gives CPUs 2 and 3 their tick by sending them a timer message at each
+ * tick of it. The minitower takes only two CPUs and its HAL sends none, so
+ * with more CPUs NT would never count the time of CPUs 2 and 3 (Task
+ * Manager shows them idle) or end a time slice there. Send the message at
+ * each tick, as the tower HAL does, to the CPUs that take it.
+ */
+static void mpa_clock_msg(SniRm200MachineState *s)
+{
+    int i;
+
+    for (i = 2; i < s->ncpus; i++) {
+        SniMpa *m = &s->mpa[i];
+
+        if (mpa_routed(m) & MPA_IT_CLOCKMSG) {
+            qatomic_set(&m->pend, m->pend | MPA_IT_CLOCKMSG);
+        }
+    }
+}
+
 /* Board lines reach every agent; each forwards what its CR routes there */
 static void mpa_update(SniRm200MachineState *s)
 {
@@ -709,6 +732,9 @@ static void mpa_set_line(void *opaque, int n, int level)
 
     if (level) {
         qatomic_set(&s->mpa_lines, s->mpa_lines | 1 << n);
+        if (n == MPA_LINE_XTIMER) {
+            mpa_clock_msg(s);
+        }
     } else {
         qatomic_set(&s->mpa_lines, s->mpa_lines & ~(1 << n));
     }
@@ -758,7 +784,7 @@ static uint32_t mpa_send(SniRm200MachineState *s, int from, uint32_t val)
 
 static uint32_t mpa_receive(SniMpa *m)
 {
-    uint16_t pend = m->pend & ~MPA_IT_CLOCKMSG;
+    uint16_t pend = m->pend;
 
     if (m->queued) {
         m->msg = m->queue[0];
@@ -819,6 +845,14 @@ static uint64_t mpa_read(void *opaque, hwaddr addr, unsigned size)
         mpa_update(s);
         break;
     }
+    case MPA_MSG_RECV2: {
+        BQL_LOCK_GUARD();
+
+        qatomic_set(&m->pend, m->pend & ~MPA_IT_CLOCKMSG);
+        mpa_update(s);
+        val = MPA_MSG_CLOCK << 24 | 1 << 1;
+        break;
+    }
     default:
         val = addr & 4 ? 0 : qatomic_read(&m->reg[addr >> 3]);
     }
@@ -846,6 +880,7 @@ static void mpa_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case MPA_MSG_STATUS:
     case MPA_ITPEND:
     case MPA_MSG_RECV:
+    case MPA_MSG_RECV2:
         break;
     default:
         qatomic_set(&m->reg[addr >> 3], val);
