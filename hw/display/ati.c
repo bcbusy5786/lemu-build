@@ -146,6 +146,27 @@ static void ati_vga_switch_mode(ATIVGAState *s)
     }
 }
 
+/*
+ * Radeon cursor mode 1, which AIX uses on the ES1000: 64x64 pixels of 32
+ * bits in the byte order of the frame buffer. The low 24 bits are a
+ * colour and the top 8 an AND mask, as in the mono mode: a mask of 0
+ * shows the colour, a mask of 0xff XORs it into the screen. The cursors
+ * of AIX 5.3 only have opaque pixels and 0xff000000, which is clear.
+ */
+static bool ati_cursor_24bpp(ATIVGAState *s)
+{
+    return s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF &&
+           (s->regs.crtc_gen_cntl & CRTC_CUR_MODE_MASK) ==
+           CRTC_CUR_MODE_24BPP_AND;
+}
+
+static uint32_t ati_cursor_pixel(ATIVGAState *s, uint32_t off)
+{
+    const uint8_t *p = &s->vga.vram_ptr[off];
+
+    return s->vga.big_endian_fb ? ldl_be_p(p) : ldl_le_p(p);
+}
+
 /* Used by host side hardware cursor */
 static void ati_cursor_define(ATIVGAState *s)
 {
@@ -158,6 +179,28 @@ static void ati_cursor_define(ATIVGAState *s)
     /* FIXME handle cur_hv_offs correctly */
     srcoff = (s->regs.cur_offset & 0x07fffff0) - (s->regs.cur_hv_offs >> 16) -
              (s->regs.cur_hv_offs & 0xffff) * 16;
+    if (ati_cursor_24bpp(s)) {
+        if (srcoff > s->vga.vram_size - 64 * 64 * 4) {
+            return;
+        }
+        if (!s->cursor) {
+            s->cursor = cursor_alloc(64, 64);
+        }
+        for (int i = 0; i < 64 * 64; i++, srcoff += 4) {
+            uint32_t px = ati_cursor_pixel(s, srcoff);
+
+            if (!(px & 0xff000000)) {
+                s->cursor->data[i] = px | 0xff000000;
+            } else if (px & 0xffffff) {
+                /* the host cursor cannot XOR, show it black */
+                s->cursor->data[i] = 0xff000000;
+            } else {
+                s->cursor->data[i] = 0;
+            }
+        }
+        qemu_console_set_cursor(s->vga.con, s->cursor);
+        return;
+    }
     if (srcoff > s->vga.vram_size - 64 * 16) {
         return;
     }
@@ -222,6 +265,25 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     }
     dp = &dp[vga->hw_cursor_x];
     h = ((s->regs.crtc_h_total_disp >> 16) + 1) * 8;
+    if (ati_cursor_24bpp(s)) {
+        srcoff = s->cursor_offset + (scr_y - vga->hw_cursor_y) * 64 * 4;
+        if (srcoff > s->vga.vram_size - 64 * 4) {
+            return;
+        }
+        for (int i = 0; i < 64; i++, srcoff += 4) {
+            uint32_t px = ati_cursor_pixel(s, srcoff);
+
+            if (vga->hw_cursor_x + i >= h) {
+                return; /* end of screen, don't span to next line */
+            }
+            if (px & 0xff000000) {
+                dp[i] ^= px & 0xffffff;
+            } else {
+                dp[i] = px | 0xff000000;
+            }
+        }
+        return;
+    }
     abits = ldq_be_p(&vga->vram_ptr[srcoff]);
     xbits = ldq_be_p(&vga->vram_ptr[srcoff + 8]);
     mask = BIT_ULL(63);
@@ -662,6 +724,16 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         uint32_t val = s->regs.crtc_gen_cntl;
         ati_reg_write_offs(&s->regs.crtc_gen_cntl,
                            addr - CRTC_GEN_CNTL, data, size);
+        if ((val ^ s->regs.crtc_gen_cntl) & CRTC_CUR_MODE_MASK &&
+            val & s->regs.crtc_gen_cntl & CRTC2_CUR_EN) {
+            /* the cursor stays on in another mode: show it again */
+            if (s->cursor_guest_mode) {
+                vga_invalidate_scanlines(&s->vga, s->vga.hw_cursor_y,
+                                         s->vga.hw_cursor_y + 63);
+            } else {
+                ati_cursor_define(s);
+            }
+        }
         if ((val & CRTC2_CUR_EN) != (s->regs.crtc_gen_cntl & CRTC2_CUR_EN)) {
             ati_vga_switch_mode(s);
             if (s->cursor_guest_mode) {
