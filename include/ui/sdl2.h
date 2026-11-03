@@ -46,6 +46,11 @@ struct sdl2_console {
     SDL_GLContext winctx;
     QKbdState *kbd;
     bool has_dmabuf;
+    /* cursor changes waiting for the main loop, see sdl_cursor_update() */
+    bool cursor_define_pending;
+    bool mouse_set_pending;
+    int mouse_set_x, mouse_set_y;
+    bool mouse_set_on;
 #ifdef CONFIG_OPENGL
     QemuGLShader *gls;
     egl_fb guest_fb;

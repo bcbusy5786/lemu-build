@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
+#include "qemu/main-loop.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "ui/sdl2.h"
@@ -57,6 +58,7 @@ static bool guest_cursor;
 static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite;
 static Notifier mouse_mode_notifier;
+static QEMUBH *sdl_cursor_bh;
 
 #define SDL2_REFRESH_INTERVAL_BUSY 10
 #define SDL2_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
@@ -800,15 +802,9 @@ void sdl2_poll_events(struct sdl2_console *scon)
     }
 }
 
-static void sdl_mouse_warp(DisplayChangeListener *dcl,
-                           int x, int y, bool on)
+static void sdl_mouse_warp_now(struct sdl2_console *scon,
+                               int x, int y, bool on)
 {
-    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-
-    if (!qemu_console_is_graphic(scon->dcl.con)) {
-        return;
-    }
-
     if (on) {
         if (!guest_cursor) {
             sdl_show_cursor(scon);
@@ -826,10 +822,8 @@ static void sdl_mouse_warp(DisplayChangeListener *dcl,
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(DisplayChangeListener *dcl,
-                             QEMUCursor *c)
+static void sdl_mouse_define_now(struct sdl2_console *scon, QEMUCursor *c)
 {
-
     if (guest_sprite) {
         SDL_FreeCursor(guest_sprite);
     }
@@ -853,9 +847,62 @@ static void sdl_mouse_define(DisplayChangeListener *dcl,
         return;
     }
     if (guest_cursor &&
-        (gui_grab || qemu_input_is_absolute(dcl->con) || absolute_enabled)) {
+        (gui_grab || qemu_input_is_absolute(scon->dcl.con) ||
+         absolute_enabled)) {
         SDL_SetCursor(guest_sprite);
     }
+}
+
+/*
+ * A device may set its cursor from a vCPU thread, with the BQL held. SDL
+ * must make cursor and window calls in the main thread (on macOS they go
+ * to AppKit), and that thread may be waiting for the BQL, so calling SDL
+ * from the callbacks below can hang QEMU. They only note the change, and
+ * this bottom half applies it in the main loop.
+ */
+static void sdl_cursor_update(void *opaque)
+{
+    for (int i = 0; i < sdl2_num_outputs; i++) {
+        struct sdl2_console *scon = &sdl2_console[i];
+
+        if (scon->cursor_define_pending) {
+            QEMUCursor *c = qemu_console_get_cursor(scon->dcl.con);
+
+            scon->cursor_define_pending = false;
+            if (c) {
+                sdl_mouse_define_now(scon, c);
+            }
+        }
+        if (scon->mouse_set_pending) {
+            scon->mouse_set_pending = false;
+            sdl_mouse_warp_now(scon, scon->mouse_set_x, scon->mouse_set_y,
+                               scon->mouse_set_on);
+        }
+    }
+}
+
+static void sdl_mouse_warp(DisplayChangeListener *dcl,
+                           int x, int y, bool on)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    if (!qemu_console_is_graphic(scon->dcl.con)) {
+        return;
+    }
+    scon->mouse_set_x = x;
+    scon->mouse_set_y = y;
+    scon->mouse_set_on = on;
+    scon->mouse_set_pending = true;
+    qemu_bh_schedule(sdl_cursor_bh);
+}
+
+static void sdl_mouse_define(DisplayChangeListener *dcl,
+                             QEMUCursor *c)
+{
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    scon->cursor_define_pending = true;
+    qemu_bh_schedule(sdl_cursor_bh);
 }
 
 static void sdl_cleanup(void)
@@ -867,6 +914,7 @@ static void sdl_cleanup(void)
     }
 
     qemu_remove_mouse_mode_change_notifier(&mouse_mode_notifier);
+    g_clear_pointer(&sdl_cursor_bh, qemu_bh_delete);
 
     for (i = 0; i < sdl2_num_outputs; i++) {
         qemu_console_unregister_listener(&sdl2_console[i].dcl);
@@ -1021,6 +1069,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         return;
     }
     sdl2_console = g_new0(struct sdl2_console, sdl2_num_outputs);
+    sdl_cursor_bh = qemu_bh_new(sdl_cursor_update, NULL);
     sdl2_input_timer = timer_new_ms(QEMU_CLOCK_REALTIME, sdl2_input_poll, NULL);
     for (i = 0; i < sdl2_num_outputs; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
