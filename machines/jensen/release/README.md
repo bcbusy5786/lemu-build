@@ -41,8 +41,9 @@ It works as for the MIPS kits (see `machines/rm200/release/README.md`):
 
 What each platform gets:
 
-- macOS: Cocoa window, Core Audio, vmnet. No SDL: built in, SDL would
-  replace Cocoa as the default window.
+- macOS: SDL window, Cocoa (`-display cocoa`), Core Audio, vmnet. The
+  kits come from the one build in `../../release`, like the other kits.
+  `build-mac.sh` here leaves SDL out, so Cocoa is its window.
 - Linux: SDL window, PulseAudio and ALSA.
 - Windows: SDL window, DirectSound. The Windows build is not run;
   `build-windows.sh` checks the configure summary and the git id.

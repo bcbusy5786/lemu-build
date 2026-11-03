@@ -1,6 +1,7 @@
 accel tcg
 audio coreaudio
 audio none
+audio sdl
 audio wav
 chardev file
 chardev hub
@@ -191,6 +192,7 @@ device virtserialport
 device vmxnet3
 display cocoa
 display none
+display sdl
 format blkdebug
 format blklogwrites
 format blkreplay
