@@ -191,12 +191,22 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
         /*
          * Create a system partition to pass the -prom-env variables.
          * Name it "common", as SLOF does: AIX bootlist looks it up by
-         * that name, SLOF by its type.
+         * that name, SLOF by its type. It is MIN_NVRAM_SIZE / 4 bytes
+         * long. If the variables need more, it gets that much room on
+         * top of them, because AIX bootlist adds boot-device later.
+         * max_len keeps space for the end marker, the padding and the
+         * free partition, which starts where this one ends.
          */
-        chrp_nvram_create_system_partition(nvram->buf, MIN_NVRAM_SIZE / 4,
-                                           nvram->size, "common");
-        chrp_nvram_create_free_partition(&nvram->buf[MIN_NVRAM_SIZE / 4],
-                                         nvram->size - MIN_NVRAM_SIZE / 4);
+        int room = MIN_NVRAM_SIZE / 4;
+        int len = chrp_nvram_create_system_partition(nvram->buf, room,
+                        nvram->size - room - 2 * sizeof(ChrpNvramPartHdr),
+                        "common");
+
+        if (len > room) {
+            len += room;
+            chrp_nvram_finish_partition((ChrpNvramPartHdr *)nvram->buf, len);
+        }
+        chrp_nvram_create_free_partition(&nvram->buf[len], nvram->size - len);
     }
 
     spapr_rtas_register(RTAS_NVRAM_FETCH, "nvram-fetch", rtas_nvram_fetch);
