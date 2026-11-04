@@ -22,7 +22,7 @@ VMware has the same backdoor, so the Intel one may work there too
 
 Which file
 ----------
-vmmouse.zip holds one installer per CPU:
+vmmouse-binaries.zip holds one installer per CPU:
     vmmouse-i386.exe    Intel     NT 3.1, 3.5, 3.51, 4.0
     vmmouse-mips.exe    MIPS      NT 4.0  (Magnum/Jazz, RM200)
     vmmouse-alpha.exe   Alpha     NT 4.0  (Jensen)
@@ -155,11 +155,11 @@ the DDK, not exports, so mips-reg.c and ppc-reg.c supply them.
 
 Files
 -----
-README.txt          this file
-vmmouse.zip         the installers, one per CPU, driver inside
-SRC\                all the source
+README.txt            this file
+vmmouse-binaries.zip  the installers, one per CPU, driver inside
+SRC\                  all the source
 mipsbuild\  alphabuild\  ppcbuild\    RISC build batch files
-.gitattributes      keeps the CRLF line ends that the NT tools need
+.gitattributes        keeps the CRLF line ends that the NT tools need
 
 
 Build for Intel  (the SDK is enough - no DDK needed)
