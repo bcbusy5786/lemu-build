@@ -22,14 +22,15 @@ VMware has the same backdoor, so the Intel one may work there too
 
 Which file
 ----------
+vmmouse.zip holds one installer per CPU:
     vmmouse-i386.exe    Intel     NT 3.1, 3.5, 3.51, 4.0
     vmmouse-mips.exe    MIPS      NT 4.0  (Magnum/Jazz, RM200)
     vmmouse-alpha.exe   Alpha     NT 4.0  (Jensen)
     vmmouse-ppc.exe     PowerPC   NT 4.0  (40P)
 
-Each one carries the driver inside itself. That one .exe is all you
-need to copy to a guest. The mouse icon on the window is just so you
-can tell it apart.
+Unzip it on the host: NT has no unzip. Each .exe carries the driver
+inside itself, so the one for your CPU is all you need to copy to a
+guest. The mouse icon on the window is just so you can tell it apart.
 
 The MIPS, Alpha and PowerPC ones are built with NT 4.0 compilers.
 They are not tested on NT 3.1 and may not run there.
@@ -155,7 +156,7 @@ the DDK, not exports, so mips-reg.c and ppc-reg.c supply them.
 Files
 -----
 README.txt          this file
-vmmouse-*.exe       the installers, one per CPU, driver inside
+vmmouse.zip         the installers, one per CPU, driver inside
 SRC\                all the source
 mipsbuild\  alphabuild\  ppcbuild\    RISC build batch files
 .gitattributes      keeps the CRLF line ends that the NT tools need
