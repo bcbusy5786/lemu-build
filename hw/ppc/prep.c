@@ -40,6 +40,7 @@
 #include "hw/core/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
+#include "hw/input/vmmouse-mmio.h"
 #include "hw/char/serial-isa.h"
 #include "chardev/char.h"
 #include "hw/core/qdev-properties.h"
@@ -475,6 +476,21 @@ static void ibm_40p_init(MachineState *machine)
         qdev_prop_set_uint32(dev, "config", 12);
         qdev_prop_set_bit(dev, "uarts", false);
         isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+
+        /*
+         * VMMouse backdoor (seamless absolute mouse) for the NT vmmouse.sys
+         * driver. It adopts the i8042 inside the pc87312 super-I/O by itself
+         * and rings it as a doorbell. Mapped in the ISA/PCI memory window
+         * below the PCI BARs; the NT driver maps this page.
+         */
+        {
+            DeviceState *vmm = qdev_new(TYPE_VMMOUSE_MMIO);
+
+            sysbus_realize_and_unref(SYS_BUS_DEVICE(vmm), &error_fatal);
+            memory_region_add_subregion_overlap(get_system_memory(),
+                0xc0f00000,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(vmm), 0), 1000);
+        }
 
         for (i = 0; i < PREP_SERIAL_PORTS; i++) {
             Chardev *chr = serial_hd(i);

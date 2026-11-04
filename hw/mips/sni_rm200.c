@@ -32,6 +32,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/audio/pcspk.h"
 #include "hw/input/i8042.h"
+#include "hw/input/vmmouse-mmio.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_device.h"
@@ -1294,7 +1295,21 @@ static void sni_rm200_init(MachineState *machine)
     qdev_prop_set_chr(DEVICE(isadev), "chardev", parallel_hds[0] ?:
                       qemu_chr_new("rm200.lpt", "null", NULL));
     isa_realize_and_unref(isadev, isa_bus, &error_fatal);
-    isa_create_simple(isa_bus, TYPE_I8042);
+    {
+        ISADevice *kbd = isa_create_simple(isa_bus, TYPE_I8042);
+        DeviceState *vm = qdev_new(TYPE_VMMOUSE_MMIO);
+
+        /*
+         * VMMouse backdoor (seamless absolute mouse) for the NT vmmouse.sys
+         * driver. Mapped high in the ISA memory window, in dead space above
+         * any real ISA card; it rings the i8042 mouse port as a doorbell.
+         */
+        object_property_set_link(OBJECT(vm), "i8042", OBJECT(kbd),
+                                 &error_abort);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(vm), &error_fatal);
+        memory_region_add_subregion_overlap(sysmem, 0x13ff0000,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(vm), 0), 1000);
+    }
     for (i = 0; i < MAX_FD; i++) {
         fds[i] = drive_get(IF_FLOPPY, 0, i);
     }

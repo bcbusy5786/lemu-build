@@ -44,6 +44,7 @@
 #include "hw/display/bochs-vbe.h"
 #include "hw/audio/pcspk.h"
 #include "hw/input/i8042.h"
+#include "hw/input/vmmouse-mmio.h"
 #include "hw/core/sysbus.h"
 #include "system/qtest.h"
 #include "system/reset.h"
@@ -381,6 +382,18 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0x80005000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(i8042),
                                                        0));
+
+    /*
+     * VMMouse backdoor: absolute ("seamless") mouse for the NT vmmouse.sys
+     * driver. A memory-mapped register window; it rings the i8042 mouse port
+     * as a doorbell, exactly like the x86 vmmouse does over the PS/2 line.
+     */
+    dev = qdev_new(TYPE_VMMOUSE_MMIO);
+    object_property_set_link(OBJECT(dev), "i8042", OBJECT(i8042),
+                             &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(address_space, 0x8000e000,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
     /* Serial ports */
     serial_mm_init(address_space, 0x80006000, 0,

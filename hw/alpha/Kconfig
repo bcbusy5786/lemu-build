@@ -35,6 +35,7 @@ config JENSEN
     select MC146818RTC
     select SERIAL_MM
     select PCKBD
+    select VMMOUSE_MMIO
     select VGA_ISA
     select PFLASH_CFI01
     select I8257

@@ -21,6 +21,7 @@
 #include "hw/dma/i8257.h"
 #include "hw/char/serial-mm.h"
 #include "hw/input/i8042.h"
+#include "hw/input/vmmouse-mmio.h"
 #include "hw/intc/i8259.h"
 #include "hw/isa/isa.h"
 #include "hw/core/irq.h"
@@ -852,6 +853,23 @@ static void jensen_init(MachineState *machine)
                           qemu_allocate_irq(jensen_local_irq, s, 2));
     qdev_connect_gpio_out(DEVICE(kbd), 1,
                           qemu_allocate_irq(jensen_local_irq, s, 3));
+
+    /*
+     * VMMouse backdoor (seamless absolute mouse) for the NT vmmouse.sys
+     * driver. It adopts the i8042 above by itself and rings it as a doorbell.
+     * Placed in ISA/EISA memory at a dead longword-aligned address below 32 MB
+     * (so Jensen's sparse window needs no HAE). NT reaches it through the
+     * sparse EISA-memory window: the driver hands the HAL's
+     * READ/WRITE_REGISTER_ULONG the QVA 0xa0f00000 (0xa0000000 | bus address).
+     */
+    {
+        DeviceState *vmm = qdev_new(TYPE_VMMOUSE_MMIO);
+
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(vmm), &error_fatal);
+        memory_region_add_subregion(&s->isa_mem, 0x00f00000,
+            sysbus_mmio_get_region(SYS_BUS_DEVICE(vmm), 0));
+    }
+
     serial_mm_init(&s->isa_io, 0x3f8, 0,
                    qemu_allocate_irq(jensen_local_irq, s, 0), 1843200 / 16,
                    serial_hd(0), DEVICE_LITTLE_ENDIAN);

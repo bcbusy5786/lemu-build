@@ -30,6 +30,7 @@ config JAZZ
     select FDC_SYSBUS
     select MC146818RTC
     select PCKBD
+    select VMMOUSE_MMIO
     select SERIAL_MM
     select PARALLEL
     select DS1225Y
@@ -102,6 +103,7 @@ config SNI_RM200
     select PCSPK
     select MC146818RTC
     select PCKBD
+    select VMMOUSE_MMIO
     select SERIAL_ISA
     select PARALLEL
     select FDC_ISA
