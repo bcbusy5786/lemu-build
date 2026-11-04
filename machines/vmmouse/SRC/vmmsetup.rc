@@ -1,0 +1,27 @@
+/*
+ * vmmsetup.rc - dialog, icon and the embedded driver for vmmsetup.exe
+ */
+
+#include <windows.h>
+#include "vmmsetup.h"
+
+IDI_MOUSE   ICON    "vmmouse.ico"
+
+/* the whole driver, carried inside the .exe and written out on Install.
+ * A user-defined type (VMMDRIVER), because this rc only takes RCDATA inline. */
+IDR_DRIVER  VMMDRIVER  "vmmouse.sys"
+
+IDD_MAIN DIALOG DISCARDABLE  0, 0, 240, 126
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "VMMouse Setup"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDI_MOUSE, IDC_LOGO, 14, 16, 20, 20
+    LTEXT           "VMMouse 1.1 - seamless mouse for Windows NT under QEMU.",
+                    IDC_TITLE, 44, 14, 186, 20
+    GROUPBOX        "Current status", -1, 12, 42, 216, 50
+    LTEXT           "", IDC_STATUS, 22, 56, 196, 30
+    DEFPUSHBUTTON   "&Install", IDC_INSTALL, 30, 102, 54, 16
+    PUSHBUTTON      "&Remove", IDC_REMOVE, 93, 102, 54, 16
+    PUSHBUTTON      "&Close", IDCANCEL, 156, 102, 54, 16
+END

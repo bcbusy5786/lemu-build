@@ -1,0 +1,5 @@
+LIBRARY hal.dll
+EXPORTS
+    READ_REGISTER_ULONG
+    WRITE_REGISTER_ULONG
+    HalTranslateBusAddress

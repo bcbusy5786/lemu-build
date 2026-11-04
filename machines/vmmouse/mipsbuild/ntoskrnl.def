@@ -1,0 +1,24 @@
+LIBRARY ntoskrnl.exe
+EXPORTS
+    ExAllocatePool
+    ExFreePool
+    ExQueueWorkItem
+    IoAttachDevice
+    IoCallDriver
+    IoCompleteRequest
+    IoCreateDevice
+    IoDeleteDevice
+    KeAcquireSpinLock
+    KeReleaseSpinLock
+    KeAcquireSpinLockAtDpcLevel
+    KeReleaseSpinLockFromDpcLevel
+    KeCancelTimer
+    KeInitializeDpc
+    KeInitializeSpinLock
+    KeInitializeTimer
+    KeSetTimer
+    RtlInitUnicodeString
+    RtlQueryRegistryValues
+    RtlWriteRegistryValue
+    MmMapIoSpace
+    MmUnmapIoSpace

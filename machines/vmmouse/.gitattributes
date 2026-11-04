@@ -1,0 +1,2 @@
+# The NT tools need CRLF line ends: keep every file exactly as it is.
+* -text -whitespace
