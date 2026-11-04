@@ -5,7 +5,7 @@ set -e
 here=$(cd "$(dirname "$0")" && pwd)
 os=$1 vm=$2 bin=$3 out=$4
 case $os in
-aix53) name=aix53pseries-qemu img=$vm/aix53-gfx.qcow2 ;;
+aix53) name=aix53pseries-qemu img=$vm/aix53.qcow2 ;;
 aix72) name=aix72pseries-qemu img=$vm/hdisk0.qcow2 ;;
 *) echo "unknown OS: $os" >&2; exit 1 ;;
 esac

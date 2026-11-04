@@ -24,5 +24,5 @@ the kernel banner.
 `build-windows.sh OUT` (Docker), and `build-macos.sh OUT` (Homebrew glib,
 pixman, libslirp, sdl2-compat, sdl3, dylibbundler) build self-contained
 qemu-system-ppc64 binaries into OUT, then `mkrelease.sh aix53|aix72 VMDIR OUT
-NAME.tar.lz` packs them with the VM's disk (`aix53-gfx.qcow2` or
+NAME.tar.lz` packs them with the VM's disk (`aix53.qcow2` or
 `hdisk0.qcow2`) and the SLOF firmware.
