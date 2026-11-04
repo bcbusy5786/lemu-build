@@ -123,6 +123,7 @@ struct ATIVGAState {
     bool cursor_guest_mode;
     uint16_t cursor_size;
     uint32_t cursor_offset;
+    uint32_t cursor_hv_offs;
     QEMUCursor *cursor;
     QEMUTimer vblank_timer;
     bitbang_i2c_interface bbi2c;

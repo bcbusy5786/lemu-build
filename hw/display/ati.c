@@ -167,18 +167,35 @@ static uint32_t ati_cursor_pixel(ATIVGAState *s, uint32_t off)
     return s->vga.big_endian_fb ? ldl_be_p(p) : ldl_le_p(p);
 }
 
+/*
+ * At the left and top edges of the screen the guest puts the cursor at 0
+ * and writes the hidden part to CUR_HORZ_VERT_OFF. The hardware skips that
+ * many pixels at the start of each line. For the hidden lines the guest
+ * moves CUR_OFFSET down itself (AIX, Linux and X.org all do), so the
+ * hardware only shows 64 minus that many lines.
+ */
+static int ati_cursor_xoff(uint32_t hv_offs)
+{
+    return (hv_offs >> 16) & 0x3f;
+}
+
+static int ati_cursor_lines(uint32_t hv_offs)
+{
+    return 64 - (hv_offs & 0x3f);
+}
+
 /* Used by host side hardware cursor */
 static void ati_cursor_define(ATIVGAState *s)
 {
-    uint64_t data[128];
+    uint8_t data[1024];
     uint32_t srcoff;
+    int xoff = ati_cursor_xoff(s->regs.cur_hv_offs);
+    int lines = ati_cursor_lines(s->regs.cur_hv_offs);
 
     if ((s->regs.cur_offset & BIT(31)) || s->cursor_guest_mode) {
         return; /* Do not update cursor if locked or rendered by guest */
     }
-    /* FIXME handle cur_hv_offs correctly */
-    srcoff = (s->regs.cur_offset & 0x07fffff0) - (s->regs.cur_hv_offs >> 16) -
-             (s->regs.cur_hv_offs & 0xffff) * 16;
+    srcoff = s->regs.cur_offset & 0x07fffff0;
     if (ati_cursor_24bpp(s)) {
         if (srcoff > s->vga.vram_size - 64 * 64 * 4) {
             return;
@@ -186,16 +203,22 @@ static void ati_cursor_define(ATIVGAState *s)
         if (!s->cursor) {
             s->cursor = cursor_alloc(64, 64);
         }
-        for (int i = 0; i < 64 * 64; i++, srcoff += 4) {
-            uint32_t px = ati_cursor_pixel(s, srcoff);
+        for (int i = 0; i < 64; i++) {
+            for (int j = 0; j < 64; j++) {
+                uint32_t px = 0xff000000; /* clear */
 
-            if (!(px & 0xff000000)) {
-                s->cursor->data[i] = px | 0xff000000;
-            } else if (px & 0xffffff) {
-                /* the host cursor cannot XOR, show it black */
-                s->cursor->data[i] = 0xff000000;
-            } else {
-                s->cursor->data[i] = 0;
+                if (i < lines && j < 64 - xoff) {
+                    px = ati_cursor_pixel(s, srcoff + i * 64 * 4 +
+                                             (j + xoff) * 4);
+                }
+                if (!(px & 0xff000000)) {
+                    s->cursor->data[i * 64 + j] = px | 0xff000000;
+                } else if (px & 0xffffff) {
+                    /* the host cursor cannot XOR, show it black */
+                    s->cursor->data[i * 64 + j] = 0xff000000;
+                } else {
+                    s->cursor->data[i * 64 + j] = 0;
+                }
             }
         }
         qemu_console_set_cursor(s->vga.con, s->cursor);
@@ -205,14 +228,21 @@ static void ati_cursor_define(ATIVGAState *s)
         return;
     }
     for (int i = 0; i < 64; i++, srcoff += 16) {
-        data[i] = ldq_le_p(&s->vga.vram_ptr[srcoff]);
-        data[i + 64] = ldq_le_p(&s->vga.vram_ptr[srcoff + 8]);
+        uint64_t abits = UINT64_MAX, xbits = 0; /* transparent */
+
+        if (i < lines) {
+            abits = ldq_be_p(&s->vga.vram_ptr[srcoff]) << xoff |
+                    (BIT_ULL(xoff) - 1);
+            xbits = ldq_be_p(&s->vga.vram_ptr[srcoff + 8]) << xoff;
+        }
+        stq_be_p(&data[i * 8], abits);
+        stq_be_p(&data[512 + i * 8], xbits);
     }
     if (!s->cursor) {
         s->cursor = cursor_alloc(64, 64);
     }
     cursor_set_mono(s->cursor, s->regs.cur_color1, s->regs.cur_color0,
-                    (uint8_t *)&data[64], 1, (uint8_t *)&data[0]);
+                    &data[512], 1, &data[0]);
     qemu_console_set_cursor(s->vga.con, s->cursor);
 }
 
@@ -228,16 +258,14 @@ static void ati_cursor_invalidate(VGACommonState *vga)
     if (s->cursor_size != size ||
         vga->hw_cursor_x != s->regs.cur_hv_pos >> 16 ||
         vga->hw_cursor_y != (s->regs.cur_hv_pos & 0xffff) ||
-        s->cursor_offset != (s->regs.cur_offset & 0x07fffff0) -
-        (s->regs.cur_hv_offs >> 16) -
-        (s->regs.cur_hv_offs & 0xffff) * 16) {
+        s->cursor_offset != (s->regs.cur_offset & 0x07fffff0) ||
+        s->cursor_hv_offs != s->regs.cur_hv_offs) {
         /* Remove old cursor then update and show new one if needed */
         vga_invalidate_scanlines(vga, vga->hw_cursor_y, vga->hw_cursor_y + 63);
         vga->hw_cursor_x = s->regs.cur_hv_pos >> 16;
         vga->hw_cursor_y = s->regs.cur_hv_pos & 0xffff;
-        s->cursor_offset = (s->regs.cur_offset & 0x07fffff0) -
-                           (s->regs.cur_hv_offs >> 16) -
-                           (s->regs.cur_hv_offs & 0xffff) * 16;
+        s->cursor_offset = s->regs.cur_offset & 0x07fffff0;
+        s->cursor_hv_offs = s->regs.cur_hv_offs;
         s->cursor_size = size;
         if (size) {
             vga_invalidate_scanlines(vga,
@@ -252,15 +280,12 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     uint32_t h, srcoff, color;
     uint64_t abits, xbits, mask;
     uint32_t *dp = (uint32_t *)d;
+    int xoff = ati_cursor_xoff(s->cursor_hv_offs);
+    int lines = ati_cursor_lines(s->cursor_hv_offs);
 
     if (!(s->regs.crtc_gen_cntl & CRTC2_CUR_EN) ||
-        scr_y < vga->hw_cursor_y || scr_y >= vga->hw_cursor_y + 64 ||
+        scr_y < vga->hw_cursor_y || scr_y >= vga->hw_cursor_y + lines ||
         scr_y > s->regs.crtc_v_total_disp >> 16) {
-        return;
-    }
-    /* FIXME handle cur_hv_offs correctly */
-    srcoff = s->cursor_offset + (scr_y - vga->hw_cursor_y) * 16;
-    if (srcoff > s->vga.vram_size - 16) {
         return;
     }
     dp = &dp[vga->hw_cursor_x];
@@ -270,7 +295,8 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
         if (srcoff > s->vga.vram_size - 64 * 4) {
             return;
         }
-        for (int i = 0; i < 64; i++, srcoff += 4) {
+        srcoff += xoff * 4;
+        for (int i = 0; i < 64 - xoff; i++, srcoff += 4) {
             uint32_t px = ati_cursor_pixel(s, srcoff);
 
             if (vga->hw_cursor_x + i >= h) {
@@ -284,10 +310,14 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
         }
         return;
     }
-    abits = ldq_be_p(&vga->vram_ptr[srcoff]);
-    xbits = ldq_be_p(&vga->vram_ptr[srcoff + 8]);
+    srcoff = s->cursor_offset + (scr_y - vga->hw_cursor_y) * 16;
+    if (srcoff > s->vga.vram_size - 16) {
+        return;
+    }
+    abits = ldq_be_p(&vga->vram_ptr[srcoff]) << xoff;
+    xbits = ldq_be_p(&vga->vram_ptr[srcoff + 8]) << xoff;
     mask = BIT_ULL(63);
-    for (int i = 0; i < 64; i++, mask >>= 1) {
+    for (int i = 0; i < 64 - xoff; i++, mask >>= 1) {
         if (vga->hw_cursor_x + i >= h) {
             return; /* end of screen, don't span to next line */
         }
