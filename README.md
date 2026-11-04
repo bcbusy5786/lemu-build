@@ -32,7 +32,7 @@ The PC has no kit, so its `run.sh` is an example.
 | Intel PC with an S3 86C928 card | [Windows NT 3.1](machines/pc/nt31/run.sh) |
 | IBM 40P (7020-40P, PReP, PowerPC 604) | [AIX 4.1.5](machines/40p/aix41/run.sh), [AIX 4.3.3](machines/40p/aix43/run.sh), [AIX 5.1](machines/40p/aix51/run.sh), [Windows NT 4.0](machines/40p/nt/run.sh), [OS/2 Warp](machines/40p/os2/run.sh), [Solaris 2.5.1](machines/40p/solaris/run.sh) |
 | IBM RS/6000 7006-41T (PowerPC 601) | [AIX 3.2.5](machines/7006/aix325/run.sh) |
-| IBM pSeries (POWER7, POWER8) | [AIX 5.3](machines/pseries/aix53/run.sh), [AIX 7.2](machines/pseries/aix72/run.sh) |
+| IBM pSeries (POWER7, POWER8) | [AIX 5.3](machines/pseries/aix53/run.sh), [AIX 6.1](machines/pseries/aix61/run.sh), [AIX 7.2](machines/pseries/aix72/run.sh) |
 
 ## Build
 
