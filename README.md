@@ -21,15 +21,18 @@ It emulates **old computers**, and it is made to be used **with AI agents**.
 
 ## Machines
 
+Each guest links to its `run.sh`, which shows the QEMU options it needs.
+The PC has no kit, so its `run.sh` is an example.
+
 | Machine | Guests |
 |---|---|
-| Siemens Nixdorf RM200 and RM300 (MIPS) | Windows NT 4.0, SINIX-N 5.45 |
-| MIPS Magnum (Jazz) | Windows NT 3.1 |
-| DEC Jensen (DECpc AXP 150, Alpha) | Windows NT 3.1, Windows NT 4.0 |
-| Intel PC with an S3 86C928 card | Windows NT 3.1 |
-| IBM 40P (7020-40P, PReP, PowerPC 604) | AIX 4.1.5, AIX 4.3.3, AIX 5.1, Windows NT 4.0, OS/2 Warp, Solaris 2.5.1 |
-| IBM RS/6000 7006-41T (PowerPC 601) | AIX 3.2.5 |
-| IBM pSeries (POWER7, POWER8) | AIX 5.3, AIX 7.2 |
+| Siemens Nixdorf RM200 and RM300 (MIPS) | [Windows NT 4.0](machines/rm200/nt40/run.sh) ([2 CPUs](machines/rm200/nt40smp/run.sh), [Server with 4 CPUs](machines/rm200/nt40srv/run.sh)), [SINIX-N 5.45](machines/rm200/sinix545/run.sh) |
+| MIPS Magnum (Jazz) | [Windows NT 3.1](machines/jazz/nt31/run.sh) |
+| DEC Jensen (DECpc AXP 150, Alpha) | [Windows NT 3.1](machines/jensen/nt31/run.sh), [Windows NT 4.0](machines/jensen/nt40/run.sh) |
+| Intel PC with an S3 86C928 card | [Windows NT 3.1](machines/pc/nt31/run.sh) |
+| IBM 40P (7020-40P, PReP, PowerPC 604) | [AIX 4.1.5](machines/40p/aix41/run.sh), [AIX 4.3.3](machines/40p/aix43/run.sh), [AIX 5.1](machines/40p/aix51/run.sh), [Windows NT 4.0](machines/40p/nt/run.sh), [OS/2 Warp](machines/40p/os2/run.sh), [Solaris 2.5.1](machines/40p/solaris/run.sh) |
+| IBM RS/6000 7006-41T (PowerPC 601) | [AIX 3.2.5](machines/7006/aix325/run.sh) |
+| IBM pSeries (POWER7, POWER8) | [AIX 5.3](machines/pseries/aix53/run.sh), [AIX 7.2](machines/pseries/aix72/run.sh) |
 
 ## Build
 
