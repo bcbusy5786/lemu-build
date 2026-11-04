@@ -839,7 +839,16 @@ static inline int64_t get_clock(void)
 {
     if (use_rt_clock) {
         struct timespec ts;
+#ifdef __APPLE__
+        /*
+         * macOS CLOCK_MONOTONIC only moves in whole microseconds, so a
+         * guest time base read in a loop sees the same value many times.
+         * CLOCK_MONOTONIC_RAW has nanosecond resolution.
+         */
+        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+#else
         clock_gettime(CLOCK_MONOTONIC, &ts);
+#endif
         return ts.tv_sec * 1000000000LL + ts.tv_nsec;
     } else {
         /* XXX: using gettimeofday leads to problems if the date
