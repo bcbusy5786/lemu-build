@@ -24,7 +24,7 @@ bin\windows-x86_64\qemu-system-ppc64.exe ^
  -drive file=aix53.qcow2,if=none,id=hd0,format=qcow2 ^
  -device scsi-hd,bus=vscsi1.0,drive=hd0,scsi-id=1,vendor=AIX,product=VDASD ^
  -boot order=c ^
- -device ati-vga,model=es1000,romfile=,addr=0 ^
+ -device ati-vga,model=es1000,romfile=,addr=0,guest_hwcursor=true ^
  -device nec-usb-ohci,id=usb0,addr=1 ^
  -device usb-kbd,bus=usb0.0 ^
  -device usb-mouse,bus=usb0.0 ^

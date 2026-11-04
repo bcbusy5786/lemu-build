@@ -74,6 +74,8 @@ AIXRC4=(
 # AIX scans virtual SCSI from target 1 (LUN 0x81), so CD and disk use scsi-id=1.
 # Keep id=hd0: QEMU sends it as the disk's unique ID, and AIX boots only from that ID.
 # Keep the graphics in PCI slot 0 and USB in slot 1: aixrc2 uses those node names.
+# guest_hwcursor=true: QEMU draws the AIX mouse cursor into the screen. With the host's
+# pointer as the cursor instead, the mouse jumps back and forth.
 exec "$q" \
  -name "AIX 5.3 POWER PSERIES" \
  -M pseries,panel=on,ic-mode=xics,usb=off,max-cpu-compat=power6,cap-hpt-max-page-size=16M \
@@ -95,7 +97,7 @@ exec "$q" \
  -drive file=aix53.qcow2,if=none,id=hd0,format=qcow2 \
  -device scsi-hd,bus=vscsi1.0,drive=hd0,scsi-id=1,vendor=AIX,product=VDASD \
  -boot order=c \
- -device ati-vga,model=es1000,romfile=,addr=0 \
+ -device ati-vga,model=es1000,romfile=,addr=0,guest_hwcursor=true \
  -device nec-usb-ohci,id=usb0,addr=1 \
  -device usb-kbd,bus=usb0.0 \
  -device usb-mouse,bus=usb0.0 \
