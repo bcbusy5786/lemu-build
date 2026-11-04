@@ -2,6 +2,7 @@ AIX 5.3 (5300-12-05) on QEMU's pSeries (POWER7 in POWER6 mode, ATI ES1000 graphi
 
 Run ./run.sh (macOS 26+ arm64, Linux x86_64/aarch64 with glibc 2.34+ and X11/XWayland) or run.cmd (Windows 10+ x64).
 Log in as root (no password) at the CDE login in the QEMU window (1280x1024), the serial console in the terminal, telnet localhost 5323 or rsh localhost port 53514.
+GNU tools are RPMs from perzl.org in /opt/freeware, linked into /usr/bin: gcc and g++ 4.8.4, bash 5.0, gmake 4.3, gdb 7.12, gtar, gzip, bzip2, xz, zip, unzip, less, autoconf, wget and curl. AIX's own make, tar, m4, patch, diff and cpp stay the default; the GNU ones are in /opt/freeware/bin.
 Screen size: as root run chdev -l ati0 -a monitor_type=VESA -a VESA=1024x768@60Hz -P, then shutdown -Fr. AIX offers 640x480, 800x600, 1024x768 and 1280x1024, at 60 or 85 Hz.
 Click in the QEMU window to grab the mouse; Ctrl-Alt-G (Ctrl-Option-G on a Mac) lets it go.
 The firmware and the AIX boot banner show in the QEMU window and use the USB keyboard. The small second window is the operator panel with the progress codes.
