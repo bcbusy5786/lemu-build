@@ -58,7 +58,8 @@ jobs:
             --enable-sdl \
             --enable-gtk \
             --enable-slirp \
-            --disable-werror
+            --disable-werror \
+            --disable-tests
 
       - name: Build
         run: |
@@ -70,7 +71,6 @@ jobs:
           cd build
           mkdir -p dist
           cp qemu-system-*.exe dist/ || true
-          # 拷贝 MSYS2 运行时需要的 DLL
           for exe in dist/qemu-system-*.exe; do
             [ -f "$exe" ] || continue
             ldd "$exe" | grep -i "mingw64/bin" | awk '{print $3}' | xargs -r -I{} cp -n {} dist/ || true
