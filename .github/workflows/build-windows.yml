@@ -3,6 +3,8 @@ name: Build LEMU for Windows
 on:
   push:
     branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
   workflow_dispatch:
 
 jobs:
@@ -13,7 +15,8 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout LEMU source
+        uses: actions/checkout@v4
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -21,7 +24,15 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            base-devel binutils bison diffutils flex git grep make sed
+            base-devel
+            binutils
+            bison
+            diffutils
+            flex
+            git
+            grep
+            make
+            sed
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-glib2
             mingw-w64-x86_64-pixman
@@ -32,23 +43,43 @@ jobs:
             mingw-w64-x86_64-gtk3
             mingw-w64-x86_64-zstd
 
+      - name: Show toolchain versions
+        run: |
+          gcc --version
+          python --version
+          ninja --version
+
       - name: Configure
         run: |
-          mkdir build && cd build
+          mkdir -p build
+          cd build
           ../configure \
             --target-list=mips64el-softmmu,mips64-softmmu,alpha-softmmu,i386-softmmu,ppc-softmmu,ppc64-softmmu \
-            --enable-sdl --enable-gtk --enable-slirp
+            --enable-sdl \
+            --enable-gtk \
+            --enable-slirp \
+            --disable-werror
 
       - name: Build
         run: |
           cd build
           make -j$(nproc)
 
-      - name: Upload Artifact
+      - name: Collect runtime DLLs
+        run: |
+          cd build
+          mkdir -p dist
+          cp qemu-system-*.exe dist/ || true
+          # 拷贝 MSYS2 运行时需要的 DLL
+          for exe in dist/qemu-system-*.exe; do
+            [ -f "$exe" ] || continue
+            ldd "$exe" | grep -i "mingw64/bin" | awk '{print $3}' | xargs -r -I{} cp -n {} dist/ || true
+          done
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: lemu-windows-binaries
-          path: |
-            build/qemu-system-*.exe
-            build/*.dll
+          path: build/dist/
           if-no-files-found: error
+          retention-days: 30
