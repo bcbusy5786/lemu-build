@@ -59,7 +59,8 @@ jobs:
             --enable-gtk \
             --enable-slirp \
             --disable-werror \
-            --disable-tests
+            --disable-tests \
+            --disable-pie
 
       - name: Build
         run: |
