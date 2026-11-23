@@ -1,4 +1,4 @@
-name: Build LEMU for Windows
+name: Build LEMU for Windows (UCRT64)
 
 on:
   push:
@@ -18,12 +18,11 @@ jobs:
       - name: Checkout LEMU source
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2
+      - name: Setup MSYS2 (UCRT64)
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
-          # 补充了显式的 libslirp 依赖
           install: >-
             base-devel
             binutils
@@ -34,16 +33,16 @@ jobs:
             grep
             make
             sed
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-glib2
-            mingw-w64-x86_64-pixman
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-SDL2
-            mingw-w64-x86_64-gtk3
-            mingw-w64-x86_64-zstd
-            mingw-w64-x86_64-libslirp
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-pixman
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-zstd
+            mingw-w64-ucrt-x86_64-libslirp
 
       - name: Show toolchain versions
         run: |
@@ -55,7 +54,6 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          # 核心修复1：加入 --disable-pie，防止 Windows 下报入口点错误
           ../configure \
             --target-list=mips64el-softmmu,mips64-softmmu,alpha-softmmu,i386-softmmu,ppc-softmmu,ppc64-softmmu \
             --enable-sdl \
@@ -70,35 +68,30 @@ jobs:
           cd build
           make -j$(nproc)
 
-      - name: Collect runtime DLLs (Recursive)
+      - name: Collect runtime DLLs (Recursive, UCRT64)
         run: |
           cd build
           mkdir -p dist
           cp qemu-system-*.exe dist/ || true
           
-          # 定义 MSYS2 的 bin 目录
-          MINGW_BIN="/mingw64/bin"
-          # 用于记录已处理的 DLL，防止死循环
+          # 注意：UCRT64 的 DLL 路径是 /ucrt64/bin
+          MINGW_BIN="/ucrt64/bin"
           touch processed_dlls.txt
           
-          # 核心修复2：递归抓取依赖脚本
           copy_deps() {
             local target="$1"
-            # 提取依赖的 DLL 名字
             objdump -p "$target" 2>/dev/null | grep "DLL Name:" | awk '{print $3}' | while read -r dll; do
-              # 如果已经处理过，或者属于 Windows 系统自带 DLL，直接跳过
               if grep -q "^${dll}$" processed_dlls.txt; then
                 continue
               fi
               echo "$dll" >> processed_dlls.txt
               
               case "$dll" in
-                KERNEL32.dll|ADVAPI32.dll|msvcrt.dll|USER32.dll|GDI32.dll|SHELL32.dll|ole32.dll|OLEAUT32.dll|WS2_32.dll|WINMM.dll|COMCTL32.dll|COMDLG32.dll|SHLWAPI.dll|UxTheme.dll|dwmapi.dll|SETUPAPI.dll|CRYPT32.dll|bcrypt.dll|d3d11.dll|dxgi.dll|DWrite.dll|dnsapi.dll|IPHLPAPI.dll|Secur32.dll|USERENV.dll|VERSION.dll|WINSPOOL.DRV|WLDAP32.dll|MPR.dll|NETAPI32.dll|ntdll.dll|PSAPI.dll|RPCRT4.dll|sechost.dll)
+                KERNEL32.dll|ADVAPI32.dll|msvcrt.dll|USER32.dll|GDI32.dll|SHELL32.dll|ole32.dll|OLEAUT32.dll|WS2_32.dll|WINMM.dll|COMCTL32.dll|COMDLG32.dll|SHLWAPI.dll|UxTheme.dll|dwmapi.dll|SETUPAPI.dll|CRYPT32.dll|bcrypt.dll|d3d11.dll|dxgi.dll|DWrite.dll|dnsapi.dll|IPHLPAPI.dll|Secur32.dll|USERENV.dll|VERSION.dll|WINSPOOL.DRV|WLDAP32.dll|MPR.dll|NETAPI32.dll|ntdll.dll|PSAPI.dll|RPCRT4.dll|sechost.dll|ucrtbase.dll)
                   continue
                   ;;
               esac
               
-              # 如果这个 DLL 在 MSYS2 环境中存在，就拷贝过去并继续查找它的依赖
               if [ -f "$MINGW_BIN/$dll" ]; then
                 echo "Copying $dll..."
                 cp "$MINGW_BIN/$dll" dist/ || true
@@ -107,7 +100,6 @@ jobs:
             done
           }
           
-          # 遍历所有编译出的 exe，执行抓取
           for exe in dist/qemu-system-*.exe; do
             [ -f "$exe" ] || continue
             echo "Processing $exe..."
